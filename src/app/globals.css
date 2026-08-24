@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --papel: #fbfbf7;
+    --grade-linha: rgb(var(--cor-giz) / 0.07);
+
+    /* Cores da marca. O painel sobrescreve estas quatro (e as variantes que
+       saem delas) num <style> no topo da página — veja src/lib/marca.ts. */
+    --cor-mata: 38 54 46;
+    --cor-mata-claro: 54 69 62;
+    --cor-mata-escuro: 27 39 33;
+    --cor-fita: 232 182 44;
+    --cor-fita-escura: 128 100 24;
+    --cor-giz: 47 95 168;
+    --cor-giz-claro: 234 239 246;
+    --cor-linha: 180 68 46;
+    --cor-linha-clara: 248 236 234;
+  }
+  * { -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-papel-fundo text-tinta font-sans antialiased;
+  }
+  ::selection { background: rgb(var(--cor-fita)); color: #14201b; }
+  :focus-visible {
+    outline: 2px solid rgb(var(--cor-giz));
+    outline-offset: 2px;
+  }
+  input, select, textarea, button { font: inherit; }
+  /* números sempre alinhados: é um painel cheio de medidas e dinheiro */
+  .num { font-variant-numeric: tabular-nums; @apply font-mono; }
+}
+
+@layer components {
+  /* papel de molde: grade fina azul de marcação */
+  .papel-molde {
+    background-color: var(--papel);
+    background-image:
+      linear-gradient(to right, var(--grade-linha) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grade-linha) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  /* base de corte: verde escuro com grade, usado na navegação */
+  .base-corte {
+    background-color: rgb(var(--cor-mata));
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 14px 14px;
+  }
+  .cartao {
+    @apply border border-grade bg-papel;
+  }
+  /* costura alinhavada = ainda provisório (pedido sem data marcada) */
+  .alinhavo {
+    border: 1.5px dashed rgb(var(--cor-linha));
+    background: #fbfbf7;
+  }
+  .rotulo {
+    @apply text-eyebrow font-mono uppercase text-tinta-suave;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded border px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-principal {
+    @apply border-mata bg-mata text-papel hover:bg-mata-escuro;
+  }
+  .btn-secundario {
+    @apply border-grade bg-papel text-tinta hover:border-tinta-suave hover:bg-papel-fundo;
+  }
+  .btn-perigo {
+    @apply border-linha bg-papel text-linha hover:bg-linha-clara;
+  }
+  /* campos do formulário público: linha de papel, não caixinha */
+  .campo-papel {
+    @apply w-full border-0 border-b border-tinta/25 bg-transparent px-0 py-2 text-[15px] outline-none placeholder:text-tinta-suave/50 focus:border-giz;
+  }
+  .campo {
+    @apply w-full rounded border border-grade bg-papel px-3 py-2 text-sm outline-none focus:border-giz;
+  }
+  /* borda serrilhada de pique/molde */
+  .pique-topo {
+    background-image: linear-gradient(135deg, transparent 50%, var(--papel) 50%),
+      linear-gradient(-135deg, transparent 50%, var(--papel) 50%);
+    background-size: 14px 14px;
+    background-repeat: repeat-x;
+  }
+}
+
+@media print {
+  .sem-impressao { display: none !important; }
+  body { background: #fff !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

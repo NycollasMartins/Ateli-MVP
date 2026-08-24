@@ -1,0 +1,15 @@
+node_modules
+.next
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
+
+# Segredos. O `.env*.local` cobre as variantes que o Next usa
+# (.env.development.local, .env.production.local, .env.test.local) — é onde a
+# SUPABASE_SERVICE_ROLE_KEY costuma parar, e ela ignora todas as travas do banco.
+# O .env.example fica de fora do ignore de propósito: ele só tem exemplos.
+.env
+.env*.local
+
+# Dados do projeto na Vercel
+.vercel

@@ -1,0 +1,11 @@
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  serverExternalPackages: ['googleapis'],
+  // Este painel não usa next/image em lugar nenhum: as poucas imagens (logo do
+  // ateliê, fotos das peças) vêm do Supabase Storage por <img> comum. Desligar
+  // o otimizador fecha a rota /_next/image e, com ela, toda a superfície do
+  // sharp/libvips, que é de onde vêm os avisos de segurança que sobram.
+  images: { unoptimized: true },
+};
+export default nextConfig;
