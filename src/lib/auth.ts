@@ -2,6 +2,7 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import type { User } from '@supabase/supabase-js';
+import { papelDe, type Papel } from './acesso';
 
 const URL_SUPABASE = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const CHAVE_PUBLICA = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
@@ -61,4 +62,41 @@ export async function estaLogado() {
 
 export function naoAutorizado() {
   return Response.json({ erro: 'Sessão expirada. Entre de novo.' }, { status: 401 });
+}
+
+// ---------- Quem pode o quê ----------
+
+export { papelDe };
+
+export async function papelAtual(): Promise<Papel | null> {
+  const usuario = await usuarioAtual();
+  return usuario ? papelDe(usuario) : null;
+}
+
+export const ehAdmin = async () => (await papelAtual()) === 'admin';
+
+/**
+ * Logado, mas sem alçada para isto. É diferente de `naoAutorizado()`: 401 faz
+ * o painel mandar entrar de novo, e entrar de novo não resolveria nada aqui.
+ */
+export function proibido() {
+  return Response.json(
+    { erro: 'Esta parte do painel é só para quem tem acesso de administrador.' },
+    { status: 403 }
+  );
+}
+
+/**
+ * Porteiro das rotas que só o administrador usa.
+ *
+ * Devolve a resposta pronta quando é para barrar, e `null` quando é para
+ * seguir. Existe para perguntar uma vez só ao Supabase quem é a pessoa: fazer
+ * `estaLogado()` e depois `ehAdmin()` conferia o token duas vezes por
+ * requisição.
+ */
+export async function exigirAdmin(): Promise<Response | null> {
+  const usuario = await usuarioAtual();
+  if (!usuario) return naoAutorizado();
+  if (papelDe(usuario) !== 'admin') return proibido();
+  return null;
 }

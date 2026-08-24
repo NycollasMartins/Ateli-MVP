@@ -6,48 +6,17 @@ import { horaDe } from '@/lib/formato';
 import { Cabecalho } from '@/components/Cabecalho';
 import { Cartao, Rotulo, Vazio, Linha } from '@/components/ui';
 import { useAviso } from '@/components/Avisos';
+import { PAPEIS, ROTULO_PAPEL, EXPLICA_PAPEL, type Papel } from '@/lib/acesso';
 
 type Pessoa = {
   id: string;
   email: string;
   nome: string;
+  papel: Papel;
   criado_em: string;
   ultimo_acesso: string | null;
+  confirmado: boolean;
 };
-
-/** A senha nova aparece uma vez só; depois disso ninguém consegue lê-la de novo. */
-function SenhaNova({ pessoa, senha, aoFechar }: { pessoa: string; senha: string; aoFechar: () => void }) {
-  const avisar = useAviso();
-
-  return (
-    <div className="border border-fita-escura/40 bg-fita/20 px-4 py-4">
-      <p className="text-sm">
-        Senha de <strong>{pessoa}</strong>. Anote ou passe agora: esta é a única vez que ela
-        aparece.
-      </p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <code className="num select-all border border-tinta/20 bg-papel px-3 py-2 text-base tracking-wide">
-          {senha}
-        </code>
-        <button
-          onClick={() => {
-            navigator.clipboard?.writeText(senha);
-            avisar('Senha copiada.');
-          }}
-          className="btn btn-secundario"
-        >
-          Copiar
-        </button>
-        <button onClick={aoFechar} className="btn btn-secundario">
-          Já anotei
-        </button>
-      </div>
-      <p className="mt-3 text-xs text-tinta-suave">
-        Peça para a pessoa entrar e trocar por uma senha dela, aqui mesmo nesta tela.
-      </p>
-    </div>
-  );
-}
 
 export default function Equipe() {
   const avisar = useAviso();
@@ -55,9 +24,8 @@ export default function Equipe() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(false);
   const [salvando, setSalvando] = useState(false);
-  const [nova, setNova] = useState({ nome: '', email: '' });
+  const [nova, setNova] = useState({ nome: '', email: '', papel: 'funcionario' as Papel });
   const [minhaSenha, setMinhaSenha] = useState('');
-  const [revelada, setRevelada] = useState<{ pessoa: string; senha: string } | null>(null);
 
   const recarregar = useCallback(async () => {
     try {
@@ -83,11 +51,11 @@ export default function Equipe() {
     if (!nova.email.includes('@')) return avisar('Escreva um e-mail válido.', 'erro');
     setSalvando(true);
     try {
-      const { senha } = await enviar<{ senha: string }>('/api/admin/equipe', 'POST', nova);
-      setRevelada({ pessoa: nova.nome.trim(), senha });
-      setNova({ nome: '', email: '' });
+      await enviar('/api/admin/equipe', 'POST', nova);
+      const paraQuem = nova.email.trim();
+      setNova({ nome: '', email: '', papel: nova.papel });
       await recarregar();
-      avisar('Acesso criado.');
+      avisar(`Convite enviado para ${paraQuem}. A pessoa escolhe a senha pelo link.`);
     } catch (e) {
       avisar((e as Error).message, 'erro');
     } finally {
@@ -95,13 +63,27 @@ export default function Equipe() {
     }
   }
 
-  async function novaSenha(p: Pessoa) {
-    if (!window.confirm(`Gerar uma senha nova para ${p.nome}? A senha atual para de funcionar.`)) return;
+  async function mandarLinkDeSenha(p: Pessoa) {
+    if (!window.confirm(`Mandar para ${p.email} um link para escolher outra senha?`)) return;
     try {
-      const { senha } = await enviar<{ senha: string }>(`/api/admin/equipe/${p.id}/senha`, 'POST');
-      setRevelada({ pessoa: p.nome, senha });
+      await enviar(`/api/admin/equipe/${p.id}/senha`, 'POST');
+      avisar(`Link enviado para ${p.email}.`);
     } catch (e) {
       avisar((e as Error).message, 'erro');
+    }
+  }
+
+  async function trocarPapel(p: Pessoa, papel: Papel) {
+    if (papel === p.papel) return;
+    try {
+      await enviar(`/api/admin/equipe/${p.id}`, 'PATCH', { papel });
+      await recarregar();
+      avisar(`${p.nome} agora é ${ROTULO_PAPEL[papel].toLowerCase()}.`);
+    } catch (e) {
+      avisar((e as Error).message, 'erro');
+      // a lista volta ao que o servidor diz: o select não pode ficar mostrando
+      // um papel que não foi aceito
+      await recarregar();
     }
   }
 
@@ -137,19 +119,11 @@ export default function Equipe() {
       />
 
       <div className="space-y-5 px-5 py-6 md:px-8">
-        {revelada && (
-          <SenhaNova
-            pessoa={revelada.pessoa}
-            senha={revelada.senha}
-            aoFechar={() => setRevelada(null)}
-          />
-        )}
-
         <Cartao>
           <div className="border-b border-grade px-4 py-2.5">
-            <Rotulo>Dar acesso a alguém</Rotulo>
+            <Rotulo>Convidar alguém</Rotulo>
           </div>
-          <div className="grid gap-2 bg-papel-fundo p-3 sm:grid-cols-[1fr_1fr_auto]">
+          <div className="grid gap-2 bg-papel-fundo p-3 sm:grid-cols-[1fr_1fr_10rem_auto]">
             <input
               value={nova.nome}
               onChange={(e) => setNova({ ...nova, nome: e.target.value })}
@@ -166,13 +140,26 @@ export default function Equipe() {
               aria-label="E-mail da pessoa"
               className="campo"
             />
+            <select
+              value={nova.papel}
+              onChange={(e) => setNova({ ...nova, papel: e.target.value as Papel })}
+              aria-label="Acesso da pessoa"
+              className="campo"
+            >
+              {PAPEIS.map((p) => (
+                <option key={p} value={p}>
+                  {ROTULO_PAPEL[p]}
+                </option>
+              ))}
+            </select>
             <button onClick={adicionar} disabled={salvando} className="btn btn-principal">
-              Criar acesso
+              Enviar convite
             </button>
           </div>
-          <p className="px-4 py-2.5 text-xs text-tinta-suave">
-            Sai uma senha temporária na tela, para você passar para a pessoa. Nenhum e-mail é
-            enviado.
+          <p className="px-4 py-2.5 text-xs leading-relaxed text-tinta-suave">
+            Chega um e-mail com um link para a pessoa escolher a própria senha. Ninguém aqui vê a
+            senha de ninguém. <strong>{ROTULO_PAPEL.funcionario}:</strong>{' '}
+            {EXPLICA_PAPEL.funcionario.toLowerCase()}
           </p>
         </Cartao>
 
@@ -198,12 +185,32 @@ export default function Equipe() {
                     <p className="truncate text-sm font-medium">{p.nome}</p>
                     <p className="num truncate text-xs text-tinta-suave">{p.email}</p>
                   </div>
+                  <select
+                    value={p.papel}
+                    onChange={(e) => trocarPapel(p, e.target.value as Papel)}
+                    aria-label={`Acesso de ${p.nome}`}
+                    title={EXPLICA_PAPEL[p.papel]}
+                    className="campo w-40 shrink-0 py-1 text-xs"
+                  >
+                    {PAPEIS.map((x) => (
+                      <option key={x} value={x}>
+                        {ROTULO_PAPEL[x]}
+                      </option>
+                    ))}
+                  </select>
                   <p className="shrink-0 text-right font-mono text-[10px] uppercase tracking-wider text-tinta-suave">
-                    {p.ultimo_acesso ? `entrou ${horaDe(p.ultimo_acesso)}` : 'nunca entrou'}
+                    {p.ultimo_acesso
+                      ? `entrou ${horaDe(p.ultimo_acesso)}`
+                      : p.confirmado
+                        ? 'nunca entrou'
+                        : 'convite pendente'}
                   </p>
                   <div className="flex shrink-0 gap-2">
-                    <button onClick={() => novaSenha(p)} className="btn btn-secundario px-2.5 py-1 text-xs">
-                      Nova senha
+                    <button
+                      onClick={() => mandarLinkDeSenha(p)}
+                      className="btn btn-secundario px-2.5 py-1 text-xs"
+                    >
+                      {p.confirmado ? 'Mandar link de senha' : 'Reenviar convite'}
                     </button>
                     <button onClick={() => tirarAcesso(p)} className="btn btn-perigo px-2.5 py-1 text-xs">
                       Tirar acesso

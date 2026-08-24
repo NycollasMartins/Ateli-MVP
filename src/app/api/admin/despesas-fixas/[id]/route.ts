@@ -1,5 +1,5 @@
 import { db } from '@/lib/supabase';
-import { estaLogado, naoAutorizado } from '@/lib/auth';
+import { exigirAdmin } from '@/lib/auth';
 import { lancarDespesasFixas } from '@/lib/despesas-fixas-servidor';
 
 export const dynamic = 'force-dynamic';
@@ -7,7 +7,8 @@ export const dynamic = 'force-dynamic';
 const centavos = (v: unknown) => Math.max(0, Math.round(Number(v)) || 0);
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  if (!(await estaLogado())) return naoAutorizado();
+  const barrado = await exigirAdmin();
+  if (barrado) return barrado;
   const { id } = await ctx.params;
   const c = await req.json().catch(() => ({}));
 
@@ -37,7 +38,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
  * de meses que já foram fechados.
  */
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  if (!(await estaLogado())) return naoAutorizado();
+  const barrado = await exigirAdmin();
+  if (barrado) return barrado;
   const { id } = await ctx.params;
 
   const { error } = await db.from('despesas_fixas').delete().eq('id', id);

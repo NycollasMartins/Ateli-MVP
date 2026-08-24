@@ -1,5 +1,5 @@
 import { db } from '@/lib/supabase';
-import { estaLogado, naoAutorizado } from '@/lib/auth';
+import { exigirAdmin } from '@/lib/auth';
 import { lancarDespesasFixas } from '@/lib/despesas-fixas-servidor';
 
 export const dynamic = 'force-dynamic';
@@ -8,7 +8,8 @@ const centavos = (v: unknown) => Math.max(0, Math.round(Number(v)) || 0);
 const diaValido = (v: unknown) => Math.min(31, Math.max(1, Math.round(Number(v)) || 1));
 
 export async function GET() {
-  if (!(await estaLogado())) return naoAutorizado();
+  const barrado = await exigirAdmin();
+  if (barrado) return barrado;
   const { data, error } = await db
     .from('despesas_fixas')
     .select('*')
@@ -19,7 +20,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  if (!(await estaLogado())) return naoAutorizado();
+  const barrado = await exigirAdmin();
+  if (barrado) return barrado;
   const c = await req.json().catch(() => ({}));
 
   const descricao = String(c.descricao ?? '').trim();

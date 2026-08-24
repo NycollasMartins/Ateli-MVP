@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { useServicos } from '@/lib/dados';
-import { moeda } from '@/lib/formato';
+import { moeda, prazoDoServico } from '@/lib/formato';
 import { useMarca, Logo } from '@/components/Marca';
 
 
@@ -59,7 +59,7 @@ export default function PrecosPublicos() {
                       {s.nome}
                       {s.descricao && <span className="block text-xs text-tinta-suave">{s.descricao}</span>}
                       <span className="mt-0.5 block font-mono text-[10px] uppercase tracking-wider text-tinta-suave">
-                        fica pronto em {s.prazo_dias} dias
+                        fica pronto em {prazoDoServico(s.prazo_dias, s.prazo_unidade)}
                       </span>
                     </span>
                     <span className="num shrink-0 text-sm">

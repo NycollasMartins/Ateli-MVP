@@ -45,14 +45,19 @@ dentro.
 | `007-despesas-fixas.sql` | Despesas que se repetem todo mês | **Ainda falta rodar no seu banco** |
 | `008-travas.sql` | Impede estado inventado e dinheiro incoerente | **Ainda falta rodar no seu banco** |
 | `009-trava-despesa-fixa.sql` | Conserta a trava do 007, que o Postgres não conseguia usar | **Ainda falta rodar no seu banco** |
+| `010-papeis-prazo-e-pressa.sql` | Papel de cada pessoa (admin/funcionário), prazo em horas, ramal e o acréscimo da pressa | **Ainda falta rodar no seu banco** |
 
-**Banco novo:** rode 001 a 009, nesta ordem.
+**Banco novo:** rode 001 a 010, nesta ordem.
 
-**Banco que já está rodando:** rode só o que ainda falta — hoje, do `003` ao `009`. Rodar os
+**Banco que já está rodando:** rode só o que ainda falta — hoje, do `003` ao `010`. Rodar os
 outros de novo também é seguro, mas não muda nada.
 
 O `008` é o único que pode reclamar: ele recusa se já existir pedido com estado fora da lista
 ou com sinal maior que o valor. O próprio arquivo traz a consulta para achar essas linhas.
+
+O `010` promove a administrador **todo mundo que já entrava no painel** — é o único jeito de
+ninguém ficar trancado para fora do que já usava. Depois de rodá-lo, entre em **Equipe** e
+rebaixe para funcionário quem não deve ver o financeiro, a equipe nem o QR.
 
 ## Depois do 004: crie a primeira pessoa
 

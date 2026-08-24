@@ -8,7 +8,7 @@ const AGOSTO = new Date(2026, 7, 20, 12);
 
 const entrega = (valor: number, quando: string, id = String(Math.random())): Pedido => ({
   id, codigo: 'AT-' + id, cliente_nome: 'Ana', cliente_telefone: '11987654321',
-  cliente_email: null, peca: 'Calça', descricao: null, observacoes: null, urgente: false,
+  cliente_email: null, cliente_ramal: null, peca: 'Calça', descricao: null, observacoes: null, urgente: false, urgente_perfil: null, acrescimo_centavos: 0,
   status: 'entregue' as Status, retirada_em: null, retirada_hora: null,
   valor_centavos: valor, sinal_centavos: 0, pago: true, pago_em: null, forma_pagamento: 'Pix',
   entregue_em: quando, google_event_id: null, criado_em: '', atualizado_em: '',

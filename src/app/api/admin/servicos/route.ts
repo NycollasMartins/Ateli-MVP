@@ -1,5 +1,6 @@
 import { db } from '@/lib/supabase';
 import { estaLogado, naoAutorizado } from '@/lib/auth';
+import { ehPrazoUnidade } from '@/lib/tipos';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,10 @@ export async function POST(req: Request) {
       categoria: String(c.categoria ?? 'Ajustes').trim(),
       descricao: c.descricao ?? null,
       preco_centavos: Number(c.preco_centavos ?? 0),
-      prazo_dias: Number(c.prazo_dias ?? 7),
+      prazo_dias: Math.max(1, Math.round(Number(c.prazo_dias) || 7)),
+      // unidade inventada viraria erro do Postgres pela trava do 010; aqui já
+      // cai no padrão, que é o que a tabela sempre usou
+      prazo_unidade: ehPrazoUnidade(c.prazo_unidade) ? c.prazo_unidade : 'dias',
       ordem: Number(c.ordem ?? 99),
     })
     .select()

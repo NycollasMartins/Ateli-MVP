@@ -1,5 +1,6 @@
 import { addDays, format, startOfWeek, endOfWeek, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import type { PrazoUnidade } from './tipos';
 
 export const moeda = (centavos: number) =>
   (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -73,6 +74,19 @@ export function prazoEmPalavras(dias: number): string {
   if (dias === -1) return 'era ontem';
   if (dias < 0) return `atrasada ${-dias} dias`;
   return `em ${dias} dias`;
+}
+
+/**
+ * O prazo de um serviço da tabela, escrito como se fala.
+ *
+ * Barra de calça fica pronta em duas horas. Enquanto só havia dias, a tabela
+ * dizia "1 dia" para ela — e a cliente ia embora achando que só voltaria no
+ * dia seguinte por uma coisa que sai enquanto ela espera.
+ */
+export function prazoDoServico(quantidade: number, unidade: PrazoUnidade): string {
+  const n = Math.max(1, Math.round(quantidade || 1));
+  if (unidade === 'horas') return n === 1 ? '1 hora' : `${n} horas`;
+  return n === 1 ? '1 dia' : `${n} dias`;
 }
 
 export function semanasAnteriores(qtd: number, base = new Date()) {

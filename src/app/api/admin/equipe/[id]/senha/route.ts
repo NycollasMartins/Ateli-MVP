@@ -1,21 +1,38 @@
 import { db } from '@/lib/supabase';
-import { estaLogado, naoAutorizado } from '@/lib/auth';
-import { senhaTemporaria } from '@/lib/senha';
+import { exigirAdmin } from '@/lib/auth';
+import { enderecoDoPainel } from '@/lib/endereco';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Gera uma senha nova para quem esqueceu a sua.
- * Ela volta uma vez só, para a tela mostrar e a pessoa anotar — não fica
- * guardada em lugar nenhum que dê para ler depois.
+ * Manda para a pessoa um e-mail com link para escolher outra senha.
+ *
+ * Antes daqui saía uma senha temporária na tela, para a administradora ditar.
+ * Ditar senha é ruim de duas formas: fica anotada num papel e passa por quem
+ * estiver por perto. Agora quem escolhe a senha é a dona dela, e ninguém mais
+ * chega a vê-la.
  */
-export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  if (!(await estaLogado())) return naoAutorizado();
+export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const barrado = await exigirAdmin();
+  if (barrado) return barrado;
   const { id } = await ctx.params;
 
-  const senha = senhaTemporaria();
-  const { error } = await db.auth.admin.updateUserById(id, { password: senha });
-  if (error) return Response.json({ erro: 'Não foi possível gerar a senha.' }, { status: 500 });
+  const { data, error: erroUsuario } = await db.auth.admin.getUserById(id);
+  const email = data?.user?.email;
+  if (erroUsuario || !email) {
+    return Response.json({ erro: 'Não achei essa pessoa.' }, { status: 404 });
+  }
 
-  return Response.json({ senha });
+  const { error } = await db.auth.resetPasswordForEmail(email, {
+    redirectTo: `${enderecoDoPainel(req)}/definir-senha`,
+  });
+
+  if (error) {
+    return Response.json(
+      { erro: 'O e-mail não pôde ser enviado. Confira o SMTP nas opções de Authentication do Supabase.' },
+      { status: 500 }
+    );
+  }
+
+  return Response.json({ ok: true, email });
 }

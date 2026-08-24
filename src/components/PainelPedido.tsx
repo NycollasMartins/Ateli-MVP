@@ -224,6 +224,9 @@ export function PainelPedido({
             >
               {pedido.cliente_telefone}
             </a>
+            {pedido.cliente_ramal && (
+              <p className="num text-sm text-tinta-suave">ramal {pedido.cliente_ramal}</p>
+            )}
             {pedido.cliente_email && (
               <p className="text-sm text-tinta-suave">{pedido.cliente_email}</p>
             )}

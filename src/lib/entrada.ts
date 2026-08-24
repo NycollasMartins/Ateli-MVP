@@ -8,7 +8,7 @@
 export const LIMITE = {
   nome: 120,
   telefone: 30,
-  email: 160,
+  ramal: 10,
   peca: 60,
   descricao: 2000,
 } as const;
@@ -18,15 +18,12 @@ export const texto = (valor: unknown, maximo: number) =>
   String(valor ?? '').trim().slice(0, maximo);
 
 /**
- * E-mail com cara de e-mail, em minúsculas. Devolve vazio para o resto.
+ * Ramal: só os números, aparado no limite. Devolve vazio para o resto.
  *
- * O campo é opcional e o formulário já é `type="email"`, então o que chega
- * torto veio de fora dele. Guardar mesmo assim enchia o evento do Google e o
- * histórico da cliente com texto que não é endereço de ninguém — e recusar o
- * pedido inteiro por causa de um campo que ela nem precisava preencher seria
- * pior: o pedido é o que o ateliê não pode perder.
+ * O campo é opcional — o WhatsApp já é obrigatório e dá conta do contato — e
+ * recusar o pedido inteiro por causa dele seria trocar o que o ateliê não pode
+ * perder por um detalhe. Guardar "ramal 42 (de manhã)" também não serve: o que
+ * se disca são os dígitos.
  */
-export const email = (valor: unknown) => {
-  const limpo = texto(valor, LIMITE.email).toLowerCase();
-  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(limpo) ? limpo : '';
-};
+export const ramal = (valor: unknown) =>
+  String(valor ?? '').replace(/\D/g, '').slice(0, LIMITE.ramal);

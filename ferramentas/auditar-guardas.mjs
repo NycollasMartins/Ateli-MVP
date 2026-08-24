@@ -43,14 +43,18 @@ const QUEBRAS = [
   },
   {
     guarda: 'todo método de /api/admin revalida a sessão',
-    arquivo: 'src/app/api/admin/fechamentos/route.ts',
+    // era o de fechamentos, que passou a exigir administrador e deixou de ter
+    // este trecho; pedidos é o que toda a equipe abre, então segue com ele
+    arquivo: 'src/app/api/admin/pedidos/route.ts',
     de: 'export async function GET() {\n  if (!(await estaLogado())) return naoAutorizado();',
     para: 'export async function GET() {',
   },
   {
     guarda: 'não existe catch de corpo vazio no código',
-    arquivo: 'src/app/painel/agenda/page.tsx',
-    de: '.catch(() => setErroConexao(true));',
+    // era o fetch da Agenda, que virou try/catch dentro do ConexaoGoogle; o
+    // guarda procura corpo vazio numa linha só, então a quebra precisa ser numa
+    arquivo: 'src/app/definir-senha/page.tsx',
+    de: '.catch(() => null);',
     para: '.catch(() => {});',
   },
   {
@@ -111,10 +115,34 @@ const QUEBRAS = [
     para: '  /* removido */',
   },
   {
-    guarda: 'o que não é endereço vira vazio, e o pedido segue',
+    guarda: 'o que não tem número nenhum vira vazio, e o pedido segue',
     arquivo: 'src/lib/entrada.ts',
-    de: "return /^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(limpo) ? limpo : '';",
-    para: 'return limpo;',
+    de: "String(valor ?? '').replace(/\\D/g, '').slice(0, LIMITE.ramal);",
+    para: "String(valor ?? '');",
+  },
+  {
+    guarda: 'sem papel escrito, é funcionário — nunca o contrário',
+    arquivo: 'src/lib/acesso.ts',
+    de: "return usuario?.app_metadata?.papel === 'admin' ? 'admin' : 'funcionario';",
+    para: "return usuario?.app_metadata?.papel === 'funcionario' ? 'funcionario' : 'admin';",
+  },
+  {
+    guarda: 'um prefixo não engole o vizinho de nome parecido',
+    arquivo: 'src/lib/acesso.ts',
+    de: 'SO_ADMIN.some((p) => caminho === p || caminho.startsWith(`${p}/`));',
+    para: 'SO_ADMIN.some((p) => caminho.startsWith(p));',
+  },
+  {
+    guarda: 'pressa sem resposta cobra, em vez de isentar',
+    arquivo: 'src/lib/tipos.ts',
+    de: 'if (!urgente || isentoDeAcrescimo(perfil)) return 0;',
+    para: 'if (!urgente || !perfil || isentoDeAcrescimo(perfil)) return 0;',
+  },
+  {
+    guarda: 'todo método delas exige administrador',
+    arquivo: 'src/app/api/admin/fechamentos/route.ts',
+    de: '  const barrado = await exigirAdmin();\n  if (barrado) return barrado;',
+    para: '  /* removido */',
   },
 ];
 

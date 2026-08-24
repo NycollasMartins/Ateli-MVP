@@ -35,31 +35,68 @@ o navegador nunca fala direto com o banco.
 
 ## 3. Quem entra no painel
 
-Não existe senha única: cada pessoa do ateliê tem o próprio e-mail e a própria senha, guardados
-pelo Supabase Auth.
+Cada pessoa tem o próprio e-mail e a própria senha, guardados pelo Supabase Auth, e um **papel**:
 
-**A primeira pessoa você cria à mão**, porque ainda não há ninguém logado para criá-la:
+| Papel | O que vê |
+|---|---|
+| **Administrador** | Tudo: visão geral, pedidos, clientes, agenda, financeiro, tabela de preços, QR e equipe |
+| **Funcionário** | Visão geral, pedidos, clientes, agenda e tabela de preços |
+
+O funcionário não abre o **financeiro**, a **equipe** nem o **QR** — e não é só o menu que esconde:
+o `src/proxy.ts` barra o endereço digitado à mão e cada rota de `/api/admin` confere o papel por
+conta própria.
+
+O papel mora no `app_metadata` do Supabase, não no `user_metadata`. A diferença é a segurança do
+painel inteiro: a pessoa logada consegue escrever no próprio `user_metadata` e se promoveria a
+administrador sozinha, do navegador dela.
+
+**A primeira pessoa você cria à mão**, porque ainda não há ninguém logado para convidá-la:
 
 1. No Supabase, menu da esquerda → **Authentication** → **Users** → **Add user** →
    *Create new user*.
 2. Preencha e-mail e senha, e marque **Auto Confirm User**.
-3. Entre em `/login` com esse e-mail e essa senha.
+3. Rode o `supabase/010-papeis-prazo-e-pressa.sql`, que promove a administrador quem já existe.
+4. Entre em `/login` com esse e-mail e essa senha.
 
-Daí em diante é tudo pelo painel: **Equipe** → *Dar acesso a alguém*. Sai uma senha temporária
-na tela para você passar para a pessoa; nenhum e-mail é enviado. Na mesma tela dá para gerar
-senha nova para quem esqueceu, tirar o acesso de alguém e trocar a sua própria senha.
+Daí em diante é tudo pelo painel: **Equipe** → *Convidar alguém*. Chega um e-mail com um link
+onde a pessoa escolhe a própria senha; ninguém do ateliê chega a ver a senha de ninguém. Na
+mesma tela dá para trocar o papel de quem já entra, mandar link de senha nova para quem esqueceu
+e tirar o acesso de alguém.
+
+### Para o convite chegar: SMTP no Supabase
+
+O convite usa o envio do próprio Supabase. **No plano gratuito ele limita a poucos e-mails por
+hora** — dá para testar, não para usar de verdade. Antes de abrir para a equipe, configure um
+SMTP próprio em **Authentication → Emails → SMTP Settings**.
+
+E em **Authentication → URL Configuration**, acrescente o endereço da tela de senha à lista de
+*Redirect URLs*:
+
+```
+https://SEU-DOMINIO/definir-senha
+```
+
+Sem isso o link do e-mail leva para fora e a pessoa não consegue definir a senha.
 
 ## 4. Google Agenda
+
+Nada disso passa por arquivo: as credenciais entram pelo painel e ficam no banco.
 
 1. console.cloud.google.com → novo projeto.
 2. **APIs e serviços → Biblioteca** → ative **Google Calendar API**.
 3. **Tela de permissão OAuth**: tipo Externo, adicione seu e-mail em "usuários de teste".
 4. **Credenciais → Criar credenciais → ID do cliente OAuth → Aplicativo da Web**.
-   URI de redirecionamento autorizado:
-   - `http://localhost:3000/api/google/callback` (desenvolvimento)
-   - `https://SEU-DOMINIO/api/google/callback` (produção)
-5. Copie ID e secret para o `.env.local`.
-6. Rode o projeto, entre em **Agenda** e clique em **Conectar Google Agenda**.
+5. No painel, **Agenda → Preencher credenciais**. A tela mostra o endereço de retorno exato para
+   você copiar e cadastrar no Google Cloud — é o que precisa bater letra por letra.
+6. Cole o ID e a chave secreta, salve e clique em **Conectar Google Agenda**.
+
+Na mesma tela ficam **Desconectar** (solta a conta e para de criar eventos), **Trocar de conta**
+(conecta outra conta Google) e **Esquecer as credenciais**. Só administrador mexe nelas; o
+funcionário vê a agenda e o aviso de conectada ou não.
+
+A chave secreta nunca volta do servidor para o navegador — a tela sabe apenas se ela existe. As
+variáveis `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` continuam funcionando como reserva, para
+quem já tinha configurado assim.
 
 ## 5. Testes
 
@@ -315,21 +352,19 @@ conta como visita: ela não chegou a trazer a peça.
 
 ## Trocar a marca
 
-Nome, cores e logo ficam em **Painel → Marca**, guardados no banco. Não é preciso mexer no
-código nem republicar o site para vender o sistema para outro ateliê.
+Nome, cores e logo ficam em `MARCA_PADRAO`, no arquivo [`src/lib/marca.ts`](src/lib/marca.ts).
+Havia uma tela para editá-los no painel; ela saiu, porque a marca deste ateliê não muda no dia a
+dia — quem troca é quem mexe no código.
 
 - **Nome**: aparece no menu, na aba do navegador, no formulário da cliente, no cartaz do QR e
   nas mensagens de WhatsApp.
 - **Cores**: quatro. *Base* (menu e botões), *Fita* (dinheiro e datas), *Giz* (links) e
   *Alinhavo* (provisório e o que apaga). As variações claras e escuras de cada uma saem sozinhas
   da cor escolhida. Papel, grade e cor do texto não mudam: são o que segura a legibilidade.
-- **Logo**: PNG, JPG, WEBP ou SVG até 1 MB, guardado no Supabase Storage. Fundo transparente
-  fica melhor, porque ele aparece tanto sobre o verde do menu quanto sobre o papel do cartaz.
+- **Logo**: `logo_url` aponta para uma imagem; `null` deixa só o nome escrito.
 
-A tela de Marca muda de cor enquanto você escolhe, então a prévia é a própria página. Se uma cor
-deixar o texto ilegível, ela avisa na hora e diz o que fazer — cor bonita e ilegível é o jeito
-mais rápido de estragar o próprio painel sem perceber. Nome e
-cores valem depois de **Salvar marca**; o logo vale na hora.
+Ao desenhar algo novo, use as classes (`bg-mata`, `fill-fita`) e nunca um hex solto, senão
+aquele pedaço não acompanha a marca.
 
 ## Buscar
 
@@ -359,12 +394,14 @@ inclusive quanto sai do caixa, se o pedido já estava entregue.
 
 ```
 src/app/f/              formulário e tabela de preços que a cliente vê
+src/app/definir-senha/  onde quem foi convidado escolhe a própria senha
 src/app/painel/         visão geral, pedidos, clientes, agenda, financeiro e ajustes
 src/app/api/publico/    rotas abertas (formulário e tabela)
-src/app/api/admin/      rotas protegidas por cookie
+src/app/api/admin/      rotas protegidas por cookie; parte delas, só por administrador
 src/app/api/google/     OAuth do Calendar
 src/app/api/cron/       lembretes de 72h e 24h
 src/lib/                banco, Google, formatação, hooks
+src/lib/acesso.ts       quem pode abrir o quê — a mesma lista que o proxy usa
 src/components/         interface
 testes/                 as regras de negócio, em node --test
 supabase/00*.sql        o banco, em arquivos numerados para rodar na ordem
@@ -372,12 +409,15 @@ supabase/00*.sql        o banco, em arquivos numerados para rodar na ordem
 
 ## Conferir a instalação
 
-**Painel → Ajustes → Estado da instalação** diz, em uma tela, o que já está no lugar e o que
-falta: variáveis preenchidas, tabelas criadas, lugar das fotos fechado, quem entra no painel,
-lembretes ligados, Google Agenda conectado e se o endereço do cartaz do QR é o de verdade.
+```bash
+npm run conferir
+```
 
-Cada linha que não estiver certa diz **o que fazer** — qual arquivo rodar, onde pegar a chave.
-Para olhar o banco por dentro, o `supabase/conferir.sql` continua existindo.
+Lê o `.env.local` e diz, linha por linha, o que está no lugar e o que falta — sem imprimir chave
+nenhuma. Para olhar o banco por dentro, rode o `supabase/conferir.sql` no SQL Editor do Supabase.
+
+Havia também uma tela **Estado da instalação** no painel. Ela saiu: é ferramenta de quem instala,
+não de quem usa o ateliê todo dia.
 
 ## Segurança
 
@@ -397,6 +437,15 @@ Para olhar o banco por dentro, o `supabase/conferir.sql` continua existindo.
   variantes de `.env` que o Next usa.
 - **As fotos das peças ficam num balde fechado**, servidas por link assinado que vence em uma
   hora. Só o logo do ateliê fica num balde aberto.
+- **Papel não se escolhe do navegador.** Ele mora no `app_metadata` do Supabase Auth, que só a
+  chave de serviço escreve. No `user_metadata` — que a própria pessoa consegue alterar — um
+  funcionário se promoveria a administrador sozinho. Esconder o item do menu é cortesia: quem
+  barra é o `src/proxy.ts` e cada rota de `/api/admin`, por conta própria.
+- **Ninguém vê a senha de ninguém.** O convite e a troca de senha vão por e-mail, e a pessoa
+  escolhe a própria. Antes saía uma senha temporária na tela para a administradora ditar, o que
+  a deixava anotada num papel e ouvida por quem estivesse por perto.
+- **A chave secreta do Google não volta para o navegador.** A tela da Agenda pergunta apenas se
+  ela existe.
 
 Ao atualizar dependências, rode `npm audit`. Hoje ele acusa **zero vulnerabilidades**.
 
@@ -414,7 +463,11 @@ Ao atualizar dependências, rode `npm audit`. Hoje ele acusa **zero vulnerabilid
   são separados por cliente dentro do mesmo banco. Para vender assinatura sem instalar nada por
   cliente, seria preciso um `atelie_id` em todas as tabelas e políticas de RLS por ateliê.
 - **Serviço "escondido" em vez de apagado**, para não quebrar o histórico dos pedidos antigos.
-- **Peça urgente não sobretaxa sozinha.** O pedido chega marcado e você decide o valor.
+- **Peça com pressa cobra sozinha.** Ao marcar "preciso com pressa", o formulário pergunta se
+  quem pede é ministro, ministra ou advogado: se for, a prioridade sai sem custo; se não,
+  a pessoa vê o acréscimo de R$ 10,00 escrito e decide antes de aceitar. Quem marca e fecha a
+  pergunta sem responder paga o acréscimo — do contrário, fechar a janela seria o jeito mais
+  fácil de furar a fila.
 
 ## Desenho
 

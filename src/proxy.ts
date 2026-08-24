@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { papelDe, soAdminPode } from '@/lib/acesso';
 
 /**
  * Faz duas coisas a cada navegação: renova a sessão do Supabase (os cookies têm
@@ -35,13 +36,38 @@ export async function proxy(req: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (user) return resposta;
+    if (user) {
+      // Esconder o item do menu não basta: o endereço digitado à mão chega aqui.
+      if (soAdminPode(req.nextUrl.pathname) && papelDe(user) !== 'admin') {
+        return semAlcada(req);
+      }
+      return resposta;
+    }
   } catch {
     // Sem variáveis de ambiente, ou Supabase fora do ar. Cai no barrado abaixo:
     // é a direção segura, e melhor que devolver 500 sem explicação.
   }
 
   return barrar(req);
+}
+
+/**
+ * Logado, mas sem alçada para esta parte.
+ *
+ * Não é 401: mandar entrar de novo não daria acesso nenhum, e a pessoa ficaria
+ * tentando a senha achando que errou. Vai para a Visão geral, que todo mundo vê.
+ */
+function semAlcada(req: NextRequest) {
+  if (req.nextUrl.pathname.startsWith('/api/')) {
+    return NextResponse.json(
+      { erro: 'Esta parte do painel é só para quem tem acesso de administrador.' },
+      { status: 403 }
+    );
+  }
+
+  const inicio = new URL('/painel', req.url);
+  inicio.searchParams.set('semAlcada', '1');
+  return NextResponse.redirect(inicio);
 }
 
 /** Quem não está logado vai para o login; rota de API recebe JSON, não página de erro. */

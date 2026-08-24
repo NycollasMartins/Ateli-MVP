@@ -1,5 +1,5 @@
 import { db } from '@/lib/supabase';
-import { estaLogado, naoAutorizado } from '@/lib/auth';
+import { exigirAdmin } from '@/lib/auth';
 import { hojeNoAtelie } from '@/lib/formato';
 import { lancarDespesasFixas } from '@/lib/despesas-fixas-servidor';
 
@@ -15,7 +15,8 @@ const dia = (v: unknown) => {
 };
 
 export async function GET() {
-  if (!(await estaLogado())) return naoAutorizado();
+  const barrado = await exigirAdmin();
+  if (barrado) return barrado;
 
   // o que se repete entra aqui, e não numa tarefa agendada: assim funciona
   // igual em quem nunca configurou cron nenhum
@@ -33,7 +34,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  if (!(await estaLogado())) return naoAutorizado();
+  const barrado = await exigirAdmin();
+  if (barrado) return barrado;
   const c = await req.json().catch(() => ({}));
 
   const descricao = String(c.descricao ?? '').trim();

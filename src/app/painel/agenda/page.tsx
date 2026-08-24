@@ -18,11 +18,12 @@ import { Cabecalho } from '@/components/Cabecalho';
 import { PainelPedido } from '@/components/PainelPedido';
 import { Cartao } from '@/components/ui';
 import { useAviso } from '@/components/Avisos';
+import { ConexaoGoogle } from '@/components/ConexaoGoogle';
 
 const SEMANA = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
 
 const RECADO_DO_ERRO: Record<string, string> = {
-  'falta-credencial': 'Falta o GOOGLE_CLIENT_ID e o GOOGLE_CLIENT_SECRET no .env.local.',
+  'falta-credencial': 'Faltam as credenciais do Google. Preencha-as no bloco abaixo, uma vez só.',
   estado: 'A conexão não começou por aqui e foi recusada. Clique em Conectar nesta tela.',
   'sem-codigo': 'O Google voltou sem a autorização. Provavelmente você cancelou na tela dele.',
   falha: 'A conexão com o Google não completou. Confira as credenciais e tente de novo.',
@@ -32,20 +33,9 @@ export default function Agenda() {
   const { pedidos, recarregar } = usePedidos(20_000);
   const [mes, setMes] = useState(() => startOfMonth(new Date()));
   const [aberto, setAberto] = useState<Pedido | null>(null);
-  const [conexao, setConexao] = useState<{ conectada: boolean; configurado: boolean } | null>(null);
-  const [erroConexao, setErroConexao] = useState(false);
   const avisar = useAviso();
 
   useEffect(() => {
-    fetch('/api/admin/agenda')
-      .then((r) => r.json())
-      .then((c) => {
-        setConexao(c);
-        setErroConexao(false);
-      })
-      // sem isto, nem o aviso de conectar nem o de conectado apareciam, e ela
-      // ficava sem saber que as retiradas pararam de ir para o Google
-      .catch(() => setErroConexao(true));
     const p = new URLSearchParams(window.location.search);
     if (p.get('conectado')) avisar('Google Agenda conectado. As retiradas vão aparecer lá.');
     // cada motivo manda procurar num lugar diferente: dizer sempre "confira as
@@ -100,34 +90,7 @@ export default function Agenda() {
       />
 
       <div className="space-y-5 px-5 py-6 md:px-8">
-        {erroConexao && (
-          <div className="border-l-2 border-linha bg-linha-clara px-4 py-3 text-sm text-linha">
-            Não consegui conferir se o Google Agenda está conectado. As retiradas continuam
-            salvas aqui; confira esta tela de novo em instantes.
-          </div>
-        )}
-
-        {conexao && !conexao.conectada && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border border-fita-escura/40 bg-fita/20 px-4 py-3">
-            <p className="text-sm">
-              {conexao.configurado
-                ? 'Seu Google Agenda ainda não está conectado. Sem isso, as retiradas ficam só aqui dentro.'
-                : 'Falta preencher as credenciais do Google no arquivo .env.local para conectar a agenda.'}
-            </p>
-            {conexao.configurado && (
-              <a href="/api/google/iniciar" className="btn btn-principal">
-                Conectar Google Agenda
-              </a>
-            )}
-          </div>
-        )}
-
-        {conexao?.conectada && (
-          <p className="text-xs text-tinta-suave">
-            Google Agenda conectado · cada retirada cria um evento com os dados da cliente e avisa você 3
-            dias antes e 24 horas antes.
-          </p>
-        )}
+        <ConexaoGoogle />
 
         <Cartao className="overflow-hidden">
           <div className="grid grid-cols-7 border-b border-grade">

@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useServicos, enviar } from '@/lib/dados';
 import { moeda } from '@/lib/formato';
-import { PECAS } from '@/lib/tipos';
+import { PECAS, acrescimoDaPressa, type UrgentePerfil } from '@/lib/tipos';
 import { useMarca, Logo } from '@/components/Marca';
 import { ACCEPT, MAXIMO_CLIENTE, TAMANHO_MAXIMO, tipoAceito } from '@/lib/fotos';
 import { reduzirFoto } from '@/lib/imagem';
+import { PerguntaDaPressa } from '@/components/PerguntaDaPressa';
 
 
 export default function FormularioPublico() {
@@ -17,22 +18,33 @@ export default function FormularioPublico() {
   const [dados, setDados] = useState({
     cliente_nome: '',
     cliente_telefone: '',
-    cliente_email: '',
+    cliente_ramal: '',
     peca: '',
     descricao: '',
     urgente: false,
+    urgente_perfil: null as UrgentePerfil | null,
   });
   const [fotos, setFotos] = useState<File[]>([]);
   const [preparando, setPreparando] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [pronto, setPronto] = useState<{ codigo: string; valor: number } | null>(null);
+  const [pronto, setPronto] = useState<{ codigo: string; valor: number; acrescimo: number } | null>(null);
+  const [perguntandoPressa, setPerguntandoPressa] = useState(false);
 
   const categorias = useMemo(() => {
     const mapa = new Map<string, typeof servicos>();
     servicos.forEach((s) => mapa.set(s.categoria, [...(mapa.get(s.categoria) ?? []), s]));
     return [...mapa.entries()];
   }, [servicos]);
+
+  /** O que a pressa acrescenta a este pedido, do jeito que o servidor vai calcular. */
+  const acrescimo = acrescimoDaPressa(dados.urgente, dados.urgente_perfil);
+
+  const recadoDaPressa = !dados.urgente
+    ? 'A costureira confirma se dá tempo.'
+    : acrescimo
+      ? `Com acréscimo de ${moeda(acrescimo)} pela prioridade.`
+      : 'Sem acréscimo: você tem prioridade por direito.';
 
   const total = useMemo(
     () =>
@@ -100,7 +112,7 @@ export default function FormularioPublico() {
     setErro(null);
     setEnviando(true);
     try {
-      const r = await enviar<{ id: string; codigo: string; valor_centavos: number }>(
+      const r = await enviar<{ id: string; codigo: string; valor_centavos: number; acrescimo_centavos: number }>(
         '/api/publico/pedidos',
         'POST',
         {
@@ -120,7 +132,7 @@ export default function FormularioPublico() {
         }
       }
 
-      setPronto({ codigo: r.codigo, valor: r.valor_centavos });
+      setPronto({ codigo: r.codigo, valor: r.valor_centavos, acrescimo: r.acrescimo_centavos });
       window.scrollTo({ top: 0 });
     } catch (err) {
       setErro((err as Error).message);
@@ -146,6 +158,11 @@ export default function FormularioPublico() {
               Estimativa pela tabela: <strong>{moeda(pronto.valor)}</strong>
             </p>
           )}
+          {pronto.acrescimo > 0 && (
+            <p className="mt-1 text-xs text-tinta-suave">
+              Já inclui <span className="num">{moeda(pronto.acrescimo)}</span> pela prioridade.
+            </p>
+          )}
           <button
             onClick={() => {
               setPronto(null);
@@ -154,10 +171,11 @@ export default function FormularioPublico() {
               setDados({
                 cliente_nome: '',
                 cliente_telefone: '',
-                cliente_email: '',
+                cliente_ramal: '',
                 peca: '',
                 descricao: '',
                 urgente: false,
+                urgente_perfil: null,
               });
             }}
             className="btn btn-secundario mt-7 w-full"
@@ -217,18 +235,19 @@ export default function FormularioPublico() {
               />
             </div>
             <div>
-              <label htmlFor="email" className="text-sm">
-                E-mail <span className="text-tinta-suave">(se quiser)</span>
+              <label htmlFor="ramal" className="text-sm">
+                Ramal <span className="text-tinta-suave">(se quiser)</span>
               </label>
               <input
-                id="email"
-                type="email"
-                value={dados.cliente_email}
-                maxLength={160}
-                onChange={(e) => setDados({ ...dados, cliente_email: e.target.value })}
-                className="campo-papel"
-                placeholder="maria@email.com"
+                id="ramal"
+                inputMode="numeric"
+                value={dados.cliente_ramal}
+                maxLength={10}
+                onChange={(e) => setDados({ ...dados, cliente_ramal: e.target.value.replace(/\D/g, '') })}
+                className="campo-papel num"
+                placeholder="4231"
               />
+              <p className="mt-1 text-xs text-tinta-suave">Facilita achar você aqui dentro.</p>
             </div>
           </div>
         </section>
@@ -255,7 +274,7 @@ export default function FormularioPublico() {
             </div>
             <div>
               <label htmlFor="descricao" className="text-sm">
-                O que precisa ser feito
+                O que você quer que seja feito
               </label>
               <textarea
                 id="descricao"
@@ -398,17 +417,21 @@ export default function FormularioPublico() {
           </div>
 
           <label className="mt-6 flex items-start gap-3 border border-dashed border-linha/50 bg-linha-clara/40 px-4 py-3">
+            {/* marcar abre a pergunta em vez de marcar direto: ninguém aceita um
+                acréscimo sem antes saber que ele existe */}
             <input
               type="checkbox"
               checked={dados.urgente}
-              onChange={(e) => setDados({ ...dados, urgente: e.target.checked })}
+              onChange={(e) =>
+                e.target.checked
+                  ? setPerguntandoPressa(true)
+                  : setDados({ ...dados, urgente: false, urgente_perfil: null })
+              }
               className="mt-0.5 h-4 w-4 accent-linha"
             />
             <span className="text-sm leading-snug">
               Preciso com pressa
-              <span className="block text-xs text-tinta-suave">
-                A costureira confirma se dá tempo e se muda o valor.
-              </span>
+              <span className="block text-xs text-tinta-suave">{recadoDaPressa}</span>
             </span>
           </label>
         </section>
@@ -426,12 +449,33 @@ export default function FormularioPublico() {
         </p>
       </form>
 
+      {perguntandoPressa && (
+        <PerguntaDaPressa
+          aoResponder={(perfil) => {
+            setDados({ ...dados, urgente: true, urgente_perfil: perfil });
+            setPerguntandoPressa(false);
+          }}
+          // fechar sem responder deixa a opção desmarcada, como estava
+          aoDesistir={() => {
+            setDados({ ...dados, urgente: false, urgente_perfil: null });
+            setPerguntandoPressa(false);
+          }}
+        />
+      )}
+
       {/* fita de total, fixa no rodapé */}
       <div className="fixed bottom-0 left-0 right-0 border-t-2 border-fita-escura/40 bg-fita">
         <div className="mx-auto flex max-w-lg items-center justify-between gap-4 px-5 py-3">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-tinta/60">Estimativa</p>
-            <p className="num text-lg leading-tight text-tinta">{total ? moeda(total) : 'a combinar'}</p>
+            <p className="num text-lg leading-tight text-tinta">
+              {total || acrescimo ? moeda(total + acrescimo) : 'a combinar'}
+            </p>
+            {acrescimo > 0 && (
+              <p className="text-[11px] leading-tight text-tinta/70">
+                inclui {moeda(acrescimo)} da pressa
+              </p>
+            )}
           </div>
           {/* `form` liga o botão ao formulário mesmo estando fora dele, na fita
               do rodapé. Sem isso o navegador não checa os campos obrigatórios

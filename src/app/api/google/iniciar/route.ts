@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
-import { urlAutorizacao, COOKIE_ESTADO } from '@/lib/google';
+import { urlAutorizacao, temCredenciais, enderecoDeVolta, COOKIE_ESTADO } from '@/lib/google';
+import { enderecoDoPainel } from '@/lib/endereco';
 
 export const dynamic = 'force-dynamic';
+
+/** Location relativo: atrás de proxy, o endereço que chega aqui é o interno. */
+const paraAgenda = (busca: string) =>
+  new NextResponse(null, { status: 307, headers: { location: `/painel/agenda?${busca}` } });
 
 /**
  * Manda para a tela de permissão do Google levando um sorteio no bolso.
@@ -12,16 +17,12 @@ export const dynamic = 'force-dynamic';
  * pronto que alguém mandou para a costureira.
  */
 export async function GET(req: Request) {
-  if (!process.env.GOOGLE_CLIENT_ID) {
-    // relativo: o endereço que chega aqui é o interno quando há proxy na frente
-    return new NextResponse(null, {
-      status: 307,
-      headers: { location: '/painel/agenda?erro=falta-credencial' },
-    });
-  }
+  if (!(await temCredenciais())) return paraAgenda('erro=falta-credencial');
 
   const estado = randomUUID();
-  const resposta = NextResponse.redirect(urlAutorizacao(estado));
+  const resposta = NextResponse.redirect(
+    await urlAutorizacao(estado, enderecoDeVolta(enderecoDoPainel(req)))
+  );
 
   resposta.cookies.set(COOKIE_ESTADO, estado, {
     httpOnly: true,

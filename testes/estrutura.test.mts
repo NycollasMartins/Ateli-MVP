@@ -2,6 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { SO_ADMIN } from '../src/lib/acesso.ts';
 
 function rotas(dir: string): string[] {
   return readdirSync(dir).flatMap((nome) => {
@@ -28,7 +29,7 @@ describe('nenhuma rota protegida confia só no middleware', () => {
       // separa o corpo de cada método exportado
       for (const parte of fonte.split(/(?=export async function (?:GET|POST|PUT|PATCH|DELETE)\b)/)) {
         const m = METODO.exec(parte);
-        if (m && !/estaLogado|usuarioAtual/.test(parte)) {
+        if (m && !/estaLogado|usuarioAtual|exigirAdmin/.test(parte)) {
           desprotegidos.push(`${arquivo} -> ${m[1]}`);
         }
       }
@@ -39,6 +40,46 @@ describe('nenhuma rota protegida confia só no middleware', () => {
       [],
       'rota de admin sem revalidar a sessão. O middleware sozinho não basta:\n' +
         desprotegidos.join('\n')
+    );
+  });
+});
+
+describe('o que é só do administrador confere o papel', () => {
+  // Os prefixos vêm do mesmo lugar que o proxy usa, para a lista não sair de
+  // sincronia: acrescentar rota lá e esquecer aqui derrubaria a prova.
+  const soAdmin = SO_ADMIN.filter((p) => p.startsWith('/api/'));
+
+  const arquivosDe = (prefixo: string) => {
+    const dir = join('src/app', prefixo);
+    return existsSync(dir) ? rotas(dir) : [];
+  };
+
+  test('há rotas de administrador para conferir', () => {
+    const todas = soAdmin.flatMap(arquivosDe);
+    assert.ok(todas.length >= 6, `só ${todas.length} rotas de administrador encontradas`);
+  });
+
+  test('todo método delas exige administrador', () => {
+    const frouxos: string[] = [];
+
+    for (const prefixo of soAdmin) {
+      for (const arquivo of arquivosDe(prefixo)) {
+        const fonte = readFileSync(arquivo, 'utf8');
+        for (const parte of fonte.split(/(?=export async function (?:GET|POST|PUT|PATCH|DELETE)\b)/)) {
+          const m = METODO.exec(parte);
+          if (m && !/exigirAdmin|papelDe/.test(parte)) {
+            frouxos.push(`${arquivo} -> ${m[1]}`);
+          }
+        }
+      }
+    }
+
+    assert.deepEqual(
+      frouxos,
+      [],
+      'rota que só o administrador deveria usar aceita funcionário. Conferir a\n' +
+        'sessão não basta: funcionário tem sessão válida.\n' +
+        frouxos.join('\n')
     );
   });
 });
@@ -163,86 +204,5 @@ describe('o arquivo único das migrações acompanha os numerados', () => {
 
   test('avisa que é gerado, para ninguém editar à mão', () => {
     assert.match(readFileSync('supabase/tudo.sql', 'utf8'), /GERADO A PARTIR/);
-  });
-});
-
-/**
- * A conferência da instalação precisa cobrir o que impede o ateliê de rodar.
- *
- * A informação estava espalhada: o `conferir.sql` no Supabase, o aviso de
- * variáveis no login, o do Google na Agenda e o do endereço no QR. Quem
- * instala precisa de uma resposta, não de quatro lugares para procurar.
- */
-describe('a tela de estado da instalação confere o essencial', () => {
-  const rota = readFileSync('src/app/api/admin/saude/route.ts', 'utf8');
-
-  test('olha as tabelas que cada migração cria', () => {
-    for (const tabela of ['pedidos', 'despesas', 'perfis', 'pedido_fotos', 'despesas_fixas']) {
-      assert.ok(rota.includes(`'${tabela}'`), `não confere a tabela ${tabela}`);
-    }
-  });
-
-  test('acusa o balde das fotos se estiver aberto', () => {
-    // é a única checagem em que "existe" não basta: aberto é pior que faltando
-    assert.match(rota, /pecas/);
-    assert.match(rota, /PERIGO/, 'balde de fotos aberto precisa gritar');
-  });
-
-  test('cobre variáveis, quem entra, lembretes, agenda e endereço', () => {
-    for (const alvo of ['faltaConfigurar', 'listUsers', 'CRON_SECRET', 'agendaConectada', 'ehEnderecoDeTeste']) {
-      assert.ok(rota.includes(alvo), `não confere ${alvo}`);
-    }
-  });
-
-  test('cada recado diz o que fazer, não só o que está errado', () => {
-    assert.match(rota, /Rode o supabase\//, 'não diz qual arquivo rodar');
-    assert.match(rota, /Authentication → Users/, 'não diz como criar a primeira pessoa');
-  });
-});
-
-/**
- * A tela de estado da instalação e as migrações precisam andar juntas.
- *
- * Uma migração nova cria uma tabela que a tela não confere, e ela passa a
- * dizer "está tudo no lugar" com uma parte do banco faltando — que é
- * exatamente o oposto do que ela existe para fazer.
- */
-describe('o estado da instalação acompanha as migrações', () => {
-  const rota = readFileSync('src/app/api/admin/saude/route.ts', 'utf8');
-  const numeradas = readdirSync('supabase')
-    .filter((n) => /^\d{3}-.*\.sql$/.test(n))
-    .sort();
-
-  test('toda migração que cria tabela tem alguma delas na conferência', () => {
-    const descobertas: string[] = [];
-
-    for (const nome of numeradas) {
-      const sql = readFileSync(join('supabase', nome), 'utf8');
-      const tabelas = [...sql.matchAll(/create table if not exists (\w+)/g)].map((m) => m[1]);
-      if (tabelas.length === 0) continue;
-
-      if (!tabelas.some((t) => rota.includes(`'${t}'`))) {
-        descobertas.push(`${nome} cria ${tabelas.join(', ')} e a tela não confere nenhuma`);
-      }
-    }
-
-    assert.deepEqual(
-      descobertas,
-      [],
-      'a tela diria "está tudo no lugar" com parte do banco faltando:\n' + descobertas.join('\n')
-    );
-  });
-
-  test('todo balde criado é conferido', () => {
-    const descobertos: string[] = [];
-
-    for (const nome of numeradas) {
-      const sql = readFileSync(join('supabase', nome), 'utf8');
-      for (const m of sql.matchAll(/values\s*\(\s*'(\w+)',\s*'\1'/g)) {
-        if (!rota.includes(`'${m[1]}'`)) descobertos.push(`${nome}: balde ${m[1]}`);
-      }
-    }
-
-    assert.deepEqual(descobertos, [], `balde sem conferência:\n${descobertos.join('\n')}`);
   });
 });

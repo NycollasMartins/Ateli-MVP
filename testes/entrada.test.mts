@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { LIMITE, texto, email } from '../src/lib/entrada.ts';
+import { LIMITE, texto, ramal } from '../src/lib/entrada.ts';
 import { PECAS } from '../src/lib/tipos.ts';
 
 describe('o que chega pela rota aberta tem teto', () => {
@@ -28,9 +28,9 @@ describe('o que chega pela rota aberta tem teto', () => {
     for (const v of [null, undefined, '']) assert.equal(texto(v, 10), '');
   });
 
-  test('e-mail longo de verdade ainda cabe', () => {
-    // o máximo de um e-mail pela norma é 254; 160 cobre o que existe na prática
-    assert.ok(LIMITE.email >= 100);
+  test('ramal de verdade cabe', () => {
+    // ramal aqui tem 4 dígitos; 10 cobre com folga quem escreve com o prefixo
+    assert.ok(LIMITE.ramal >= 4);
   });
 });
 
@@ -47,25 +47,27 @@ describe('a peça vem de uma lista fechada', () => {
   });
 });
 
-describe('o e-mail da cliente', () => {
-  test('endereço de verdade passa, em minúsculas', () => {
-    assert.equal(email('Maria@Email.com'), 'maria@email.com');
-    assert.equal(email('  ana.paula+atelie@gmail.com  '), 'ana.paula+atelie@gmail.com');
+describe('o ramal de quem deixou a peça', () => {
+  test('guarda só os números', () => {
+    assert.equal(ramal('4231'), '4231');
+    assert.equal(ramal(' 42-31 '), '4231');
+    assert.equal(ramal('ramal 4231'), '4231');
   });
 
-  test('o que não é endereço vira vazio, e o pedido segue', () => {
-    for (const lixo of ['', '   ', 'maria', 'maria@', '@email.com', 'maria email.com', 'maria@email', 'a@b c.com']) {
-      assert.equal(email(lixo), '', `passou: ${JSON.stringify(lixo)}`);
+  test('o que não tem número nenhum vira vazio, e o pedido segue', () => {
+    for (const lixo of ['', '   ', 'não sei', '----']) {
+      assert.equal(ramal(lixo), '', `passou: ${JSON.stringify(lixo)}`);
     }
   });
 
   test('nulo, número e objeto não estouram', () => {
-    for (const lixo of [null, undefined, 42, {}, []]) {
-      assert.equal(email(lixo), '');
-    }
+    assert.equal(ramal(null), '');
+    assert.equal(ramal(undefined), '');
+    assert.equal(ramal(4231), '4231');
+    assert.equal(ramal({}), '');
   });
 
-  test('continua respeitando o teto de tamanho', () => {
-    assert.equal(email(`${'a'.repeat(LIMITE.email)}@email.com`), '');
+  test('respeita o teto de tamanho', () => {
+    assert.equal(ramal('9'.repeat(50)).length, LIMITE.ramal);
   });
 });

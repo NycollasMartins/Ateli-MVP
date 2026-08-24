@@ -1,4 +1,5 @@
-import type { Situacao } from './saude';
+/** Vinha da tela de Estado da instalação, que saiu; o tipo ficou onde é usado. */
+export type Situacao = 'ok' | 'atencao' | 'falta';
 
 /**
  * Confere o `.env.local` antes de o painel subir.
@@ -176,15 +177,28 @@ export function conferirAmbiente(vars: Record<string, string | undefined>): Conf
   // ---------- Opcionais, mas inteiros ----------
   // Meio preenchido é pior que vazio: o painel tenta, falha no meio e a dona
   // fica sem saber se o problema é dela.
-  const google = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI', 'GOOGLE_CALENDAR_ID'];
+  // As credenciais do Google agora entram pelo painel, em Agenda -> Preencher
+  // credenciais, e ficam no banco. Estas variáveis viraram reserva: vazias não
+  // são problema nenhum, mas meio preenchidas continuam sendo, porque vencem
+  // sobre o que está guardado.
+  const google = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
   const temGoogle = google.filter((n) => presente(vars[n]));
   if (temGoogle.length === 0) {
-    diz('Google Agenda', 'atencao', 'Desligado. O painel funciona sem, só não cria evento na agenda.');
+    diz('Google Agenda', 'ok', 'As credenciais entram pelo painel, em Agenda.');
   } else if (temGoogle.length < google.length) {
-    diz('Google Agenda', 'falta', `Falta preencher: ${google.filter((n) => !presente(vars[n])).join(', ')}.`);
+    diz(
+      'Google Agenda',
+      'falta',
+      `Meio preenchida vence sobre o painel e falha no meio. Complete ou apague: ${google
+        .filter((n) => !presente(vars[n]))
+        .join(', ')}.`
+    );
   } else {
-    diz('Google Agenda', 'ok', 'As quatro estão preenchidas.');
+    diz('Google Agenda', 'ok', 'Credenciais no arquivo, valendo sobre as do painel.');
   }
+
+  // continuam no exemplo e são conferidas aqui, mesmo sem regra própria:
+  // GOOGLE_REDIRECT_URI e GOOGLE_CALENDAR_ID têm padrão quando vazias
 
   const email = ['RESEND_API_KEY', 'EMAIL_DESTINO', 'EMAIL_REMETENTE'];
   const temEmail = email.filter((n) => presente(vars[n]));

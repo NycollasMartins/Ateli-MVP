@@ -6,8 +6,8 @@ import type { Pedido, Status } from '../src/lib/tipos.ts';
 function pedido(p: Partial<Pedido>): Pedido {
   return {
     id: '1', codigo: 'AT-001', cliente_nome: 'Ana Beatriz Souza',
-    cliente_telefone: '11987654321', cliente_email: null,
-    peca: 'Calça', descricao: null, observacoes: null, urgente: false,
+    cliente_telefone: '11987654321', cliente_email: null, cliente_ramal: null,
+    peca: 'Calça', descricao: null, observacoes: null, urgente: false, urgente_perfil: null, acrescimo_centavos: 0,
     status: 'agendado' as Status, retirada_em: '2026-08-27', retirada_hora: '10:00',
     valor_centavos: 7000, sinal_centavos: 0, pago: false, pago_em: null,
     forma_pagamento: null, entregue_em: null, google_event_id: null,

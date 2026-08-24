@@ -15,7 +15,7 @@ const dia = (n: number) => {
 function pedido(p: Partial<Pedido> & { id: string }): Pedido {
   return {
     codigo: 'AT-' + p.id, cliente_nome: 'Ana', cliente_telefone: '11987654321',
-    cliente_email: null, peca: 'Calça', descricao: null, observacoes: null, urgente: false,
+    cliente_email: null, cliente_ramal: null, peca: 'Calça', descricao: null, observacoes: null, urgente: false, urgente_perfil: null, acrescimo_centavos: 0,
     status: 'agendado' as Status, retirada_em: dia(2), retirada_hora: '10:00',
     valor_centavos: 10000, sinal_centavos: 0, pago: false, pago_em: null, forma_pagamento: null,
     entregue_em: null, google_event_id: null, criado_em: '', atualizado_em: '', ...p,

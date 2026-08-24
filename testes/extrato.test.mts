@@ -5,7 +5,7 @@ import type { Despesa, Pedido, Status } from '../src/lib/tipos.ts';
 
 const entrega = (codigo: string, valor: number, quando: string, extra: Partial<Pedido> = {}): Pedido => ({
   id: codigo, codigo, cliente_nome: 'Ana Souza', cliente_telefone: '11987654321',
-  cliente_email: null, peca: 'Calça', descricao: null, observacoes: null, urgente: false,
+  cliente_email: null, cliente_ramal: null, peca: 'Calça', descricao: null, observacoes: null, urgente: false, urgente_perfil: null, acrescimo_centavos: 0,
   status: 'entregue' as Status, retirada_em: null, retirada_hora: null,
   valor_centavos: valor, sinal_centavos: 0, pago: true, pago_em: null, forma_pagamento: 'Pix',
   entregue_em: quando, google_event_id: null, criado_em: '', atualizado_em: '', ...extra,

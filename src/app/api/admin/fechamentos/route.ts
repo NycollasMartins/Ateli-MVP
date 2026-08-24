@@ -1,5 +1,5 @@
 import { db } from '@/lib/supabase';
-import { estaLogado, naoAutorizado } from '@/lib/auth';
+import { exigirAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,13 +7,15 @@ export const dynamic = 'force-dynamic';
 const centavos = (v: unknown) => Math.max(0, Math.round(Number(v)) || 0);
 
 export async function GET() {
-  if (!(await estaLogado())) return naoAutorizado();
+  const barrado = await exigirAdmin();
+  if (barrado) return barrado;
   const { data } = await db.from('fechamentos').select('*').order('semana_inicio', { ascending: false }).limit(52);
   return Response.json({ fechamentos: data ?? [] });
 }
 
 export async function POST(req: Request) {
-  if (!(await estaLogado())) return naoAutorizado();
+  const barrado = await exigirAdmin();
+  if (barrado) return barrado;
   const c = await req.json().catch(() => ({}));
   if (!c.semana_inicio || !c.semana_fim)
     return Response.json({ erro: 'Semana inválida.' }, { status: 400 });

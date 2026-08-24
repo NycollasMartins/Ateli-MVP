@@ -421,7 +421,10 @@ describe('botão de perigo pergunta antes', () => {
     for (const arquivo of TELAS) {
       const fonte = readFileSync(arquivo, 'utf8');
 
-      for (const m of fonte.matchAll(/<button\b[\s\S]{0,600}?btn-perigo[\s\S]{0,200}?>/g)) {
+      // `(?!<button)` prende a janela ao <button mais próximo do btn-perigo. Sem
+      // isso ela começava num botão anterior e conferia a função errada: acusava
+      // o inocente e, pior, absolvia o perigoso quando o vizinho tinha `confirm`.
+      for (const m of fonte.matchAll(/<button\b(?:(?!<button)[\s\S]){0,600}?btn-perigo[\s\S]{0,200}?>/g)) {
         const tag = m[0];
         // `onClick={nome}` ou `onClick={() => nome(...)}`
         const alvo = /onClick=\{(?:\(\)\s*=>\s*)?(\w+)/.exec(tag)?.[1];

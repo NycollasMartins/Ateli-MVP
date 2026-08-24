@@ -30,6 +30,14 @@ export default function VisaoGeral() {
     limparChegaram();
   }, [chegaram, avisar, limparChegaram]);
 
+  // Quem digita à mão o endereço de uma tela que não pode abrir cai aqui. Sem
+  // dizer nada, a Visão geral aparecendo do nada parece defeito do painel.
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has('semAlcada')) return;
+    avisar('Essa parte do painel é só para quem tem acesso de administrador.', 'erro');
+    window.history.replaceState({}, '', '/painel');
+  }, [avisar]);
+
   // mantém o painel lateral com os dados frescos depois de salvar
   useEffect(() => {
     if (!aberto) return;

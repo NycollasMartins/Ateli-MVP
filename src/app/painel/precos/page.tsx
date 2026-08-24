@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useServicos, enviar } from '@/lib/dados';
 import { paraCentavos, paraReais } from '@/lib/dinheiro';
 import { moeda } from '@/lib/formato';
-import type { Servico } from '@/lib/tipos';
+import { PRAZO_UNIDADES, type PrazoUnidade, type Servico } from '@/lib/tipos';
 import { Cabecalho } from '@/components/Cabecalho';
 import { Cartao, Rotulo } from '@/components/ui';
 import { useAviso } from '@/components/Avisos';
@@ -14,7 +14,7 @@ import { useAviso } from '@/components/Avisos';
 export default function Precos() {
   const { servicos, carregando, recarregar } = useServicos();
   const [rascunho, setRascunho] = useState<Record<string, Partial<Servico> & { precoTexto?: string }>>({});
-  const [novo, setNovo] = useState({ nome: '', categoria: 'Ajustes', preco: '', prazo: '7' });
+  const [novo, setNovo] = useState({ nome: '', categoria: 'Ajustes', preco: '', prazo: '7', unidade: 'dias' as PrazoUnidade });
   const [salvando, setSalvando] = useState(false);
   const avisar = useAviso();
 
@@ -71,9 +71,10 @@ export default function Precos() {
         categoria: novo.categoria,
         preco_centavos: paraCentavos(novo.preco),
         prazo_dias: Number(novo.prazo) || 7,
+        prazo_unidade: novo.unidade,
         ordem: servicos.length + 1,
       });
-      setNovo({ nome: '', categoria: novo.categoria, preco: '', prazo: '7' });
+      setNovo({ nome: '', categoria: novo.categoria, preco: '', prazo: '7', unidade: novo.unidade });
       await recarregar();
       avisar('Serviço adicionado à tabela.');
     } catch (e) {
@@ -104,7 +105,7 @@ export default function Precos() {
       <div className="space-y-5 px-5 py-6 md:px-8">
         <Cartao className="p-4">
           <Rotulo>Adicionar serviço</Rotulo>
-          <div className="mt-3 grid gap-2 sm:grid-cols-[2fr_1fr_7rem_6rem_auto]">
+          <div className="mt-3 grid gap-2 sm:grid-cols-[2fr_1fr_7rem_4.5rem_6rem_auto]">
             <input
               value={novo.nome}
               onChange={(e) => setNovo({ ...novo, nome: e.target.value })}
@@ -130,11 +131,23 @@ export default function Precos() {
             <input
               value={novo.prazo}
               onChange={(e) => setNovo({ ...novo, prazo: e.target.value })}
-              aria-label="Prazo em dias do serviço novo"
-              placeholder="dias"
+              aria-label="Prazo do serviço novo"
+              placeholder="7"
               inputMode="numeric"
               className="campo num"
             />
+            <select
+              value={novo.unidade}
+              onChange={(e) => setNovo({ ...novo, unidade: e.target.value as PrazoUnidade })}
+              aria-label="Unidade do prazo do serviço novo"
+              className="campo"
+            >
+              {PRAZO_UNIDADES.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
             <button onClick={adicionar} disabled={salvando} className="btn btn-principal">
               Adicionar
             </button>
@@ -142,11 +155,12 @@ export default function Precos() {
         </Cartao>
 
         <Cartao>
-          <div className="hidden gap-3 border-b border-grade px-4 py-2 md:grid md:grid-cols-[2.2fr_1fr_7rem_5rem_9rem]">
+          <div className="hidden gap-3 border-b border-grade px-4 py-2 md:grid md:grid-cols-[2.2fr_1fr_7rem_4.5rem_6rem_9rem]">
             <span className="rotulo">Serviço</span>
             <span className="rotulo">Categoria</span>
             <span className="rotulo">Preço</span>
             <span className="rotulo">Prazo</span>
+            <span className="rotulo">Em</span>
             <span className="rotulo text-right">Ações</span>
           </div>
 
@@ -159,7 +173,7 @@ export default function Precos() {
               return (
                 <li
                   key={s.id}
-                  className={`grid gap-3 px-4 py-3 md:grid-cols-[2.2fr_1fr_7rem_5rem_9rem] md:items-center ${
+                  className={`grid gap-3 px-4 py-3 md:grid-cols-[2.2fr_1fr_7rem_4.5rem_6rem_9rem] md:items-center ${
                     s.ativo ? '' : 'opacity-50'
                   }`}
                 >
@@ -185,10 +199,22 @@ export default function Precos() {
                   <input
                     value={String((d.prazo_dias as number) ?? s.prazo_dias)}
                     onChange={(e) => mudar(s.id, 'prazo_dias', Number(e.target.value))}
-                    aria-label={`Prazo em dias de ${s.nome}`}
+                    aria-label={`Prazo de ${s.nome}`}
                     inputMode="numeric"
                     className="campo num"
                   />
+                  <select
+                    value={(d.prazo_unidade as PrazoUnidade) ?? s.prazo_unidade}
+                    onChange={(e) => mudar(s.id, 'prazo_unidade', e.target.value)}
+                    aria-label={`Unidade do prazo de ${s.nome}`}
+                    className="campo"
+                  >
+                    {PRAZO_UNIDADES.map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
                   <div className="flex justify-end gap-2">
                     {alterado ? (
                       <button onClick={() => salvar(s)} disabled={salvando} className="btn btn-principal py-1.5 text-xs">

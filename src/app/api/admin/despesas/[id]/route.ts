@@ -1,5 +1,5 @@
 import { db } from '@/lib/supabase';
-import { estaLogado, naoAutorizado } from '@/lib/auth';
+import { exigirAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,7 +8,8 @@ const centavos = (v: unknown) => Math.max(0, Math.round(Number(v)) || 0);
 const PERMITIDOS = ['descricao', 'categoria', 'valor_centavos', 'data', 'observacao'] as const;
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  if (!(await estaLogado())) return naoAutorizado();
+  const barrado = await exigirAdmin();
+  if (barrado) return barrado;
   const { id } = await ctx.params;
   const c = await req.json().catch(() => ({}));
 
@@ -27,7 +28,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 }
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  if (!(await estaLogado())) return naoAutorizado();
+  const barrado = await exigirAdmin();
+  if (barrado) return barrado;
   const { id } = await ctx.params;
   // despesa apagada some de vez: não há histórico de pedido preso a ela
   const { error } = await db.from('despesas').delete().eq('id', id);

@@ -1,7 +1,7 @@
 import { db, gerarCodigo } from '@/lib/supabase';
 import { ipDe, passouDoLimite } from '@/lib/limite';
-import { PECAS } from '@/lib/tipos';
-import { LIMITE, texto, email } from '@/lib/entrada';
+import { PECAS, acrescimoDaPressa, ehUrgentePerfil } from '@/lib/tipos';
+import { LIMITE, texto, ramal } from '@/lib/entrada';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +39,14 @@ export async function POST(req: Request) {
     return { servico_id: s.id, nome: s.nome, quantidade: q, preco_unit_centavos: s.preco_centavos };
   });
 
-  const total = itens.reduce((s, i) => s + i.preco_unit_centavos * i.quantidade, 0);
+  const subtotal = itens.reduce((s, i) => s + i.preco_unit_centavos * i.quantidade, 0);
+
+  // A pressa e o seu preço são decididos aqui, nunca pelo navegador: o valor
+  // que o formulário mostrou é só o que ela viu, não o que vale.
+  const urgente = Boolean(corpo.urgente);
+  const perfil = urgente && ehUrgentePerfil(corpo.urgente_perfil) ? corpo.urgente_perfil : null;
+  const acrescimo = acrescimoDaPressa(urgente, perfil);
+  const total = subtotal + acrescimo;
 
   let codigo = gerarCodigo();
   for (let i = 0; i < 5; i++) {
@@ -54,10 +61,12 @@ export async function POST(req: Request) {
       codigo,
       cliente_nome: nome,
       cliente_telefone: telefone,
-      cliente_email: email(corpo.cliente_email) || null,
+      cliente_ramal: ramal(corpo.cliente_ramal) || null,
       peca,
       descricao: texto(corpo.descricao, LIMITE.descricao) || null,
-      urgente: Boolean(corpo.urgente),
+      urgente,
+      urgente_perfil: perfil,
+      acrescimo_centavos: acrescimo,
       valor_centavos: total,
       status: 'novo',
     })
@@ -73,5 +82,10 @@ export async function POST(req: Request) {
   }
 
   // o id volta para o formulário poder anexar as fotos logo em seguida
-  return Response.json({ id: pedido.id, codigo: pedido.codigo, valor_centavos: total });
+  return Response.json({
+    id: pedido.id,
+    codigo: pedido.codigo,
+    valor_centavos: total,
+    acrescimo_centavos: acrescimo,
+  });
 }

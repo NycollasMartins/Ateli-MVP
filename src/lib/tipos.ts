@@ -21,10 +21,50 @@ export type Servico = {
   descricao: string | null;
   preco_centavos: number;
   unidade: string;
+  /** A quantidade do prazo. A unidade vem separada, em `prazo_unidade`. */
   prazo_dias: number;
+  prazo_unidade: PrazoUnidade;
   ativo: boolean;
   ordem: number;
 };
+
+/** Barra de calça sai em duas horas; escrever "1 dia" mentiria para a cliente. */
+export type PrazoUnidade = 'dias' | 'horas';
+
+export const PRAZO_UNIDADES: PrazoUnidade[] = ['horas', 'dias'];
+
+export const ehPrazoUnidade = (v: unknown): v is PrazoUnidade =>
+  v === 'dias' || v === 'horas';
+
+/**
+ * Quem pediu a peça com pressa.
+ *
+ * Ministro, ministra e advogado têm a pressa sem pagar por ela; o resto paga
+ * o acréscimo. A resposta fica guardada no pedido porque é ela que explica,
+ * depois, por que uma peça passou na frente sem custar mais.
+ */
+export type UrgentePerfil = 'ministro' | 'advogado' | 'outro';
+
+export const URGENTE_PERFIS: UrgentePerfil[] = ['ministro', 'advogado', 'outro'];
+
+export const ehUrgentePerfil = (v: unknown): v is UrgentePerfil =>
+  typeof v === 'string' && (URGENTE_PERFIS as string[]).includes(v);
+
+/** Quem tem direito à pressa sem acréscimo. */
+export const isentoDeAcrescimo = (perfil: UrgentePerfil | null | undefined) =>
+  perfil === 'ministro' || perfil === 'advogado';
+
+/** O que se cobra pela pressa de quem não é isento. */
+export const ACRESCIMO_PRESSA_CENTAVOS = 1000;
+
+/**
+ * Quanto a pressa custa neste pedido. Sem pressa, nada — mesmo que alguém
+ * mande um perfil junto.
+ */
+export function acrescimoDaPressa(urgente: boolean, perfil: UrgentePerfil | null | undefined) {
+  if (!urgente || isentoDeAcrescimo(perfil)) return 0;
+  return ACRESCIMO_PRESSA_CENTAVOS;
+}
 
 export type PedidoItem = {
   id: string;
@@ -41,10 +81,16 @@ export type Pedido = {
   cliente_nome: string;
   cliente_telefone: string;
   cliente_email: string | null;
+  /** Ramal de quem deixou a peça: é assim que se acha alguém aqui dentro. */
+  cliente_ramal: string | null;
   peca: string;
   descricao: string | null;
   observacoes: string | null;
   urgente: boolean;
+  /** Quem pediu pressa: ministro e advogado não pagam por ela. */
+  urgente_perfil: UrgentePerfil | null;
+  /** O que foi cobrado a mais pela pressa, já somado ao `valor_centavos`. */
+  acrescimo_centavos: number;
   status: Status;
   retirada_em: string | null;
   retirada_hora: string | null;

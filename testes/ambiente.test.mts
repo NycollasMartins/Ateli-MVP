@@ -120,11 +120,22 @@ describe('o que o .env.local não pode deixar passar', () => {
     assert.match(c!.recado, /5 caracteres/);
   });
 
-  /** Google pela metade é pior que Google desligado: falha no meio da conta. */
-  test('Google pela metade é falta; Google desligado é só aviso', () => {
+  /**
+   * Google pela metade é pior que Google vazio: as variáveis vencem sobre as
+   * credenciais guardadas pelo painel, então uma sozinha desliga o que estava
+   * funcionando e falha no meio da conta.
+   *
+   * Vazio deixou de ser problema no dia em que as credenciais passaram a
+   * entrar pela tela da Agenda — é o caminho normal agora.
+   */
+  test('Google pela metade é falta; Google vazio é o normal', () => {
     assert.equal(achar({ ...COMPLETO, GOOGLE_CLIENT_SECRET: '' }, 'Google Agenda')?.situacao, 'falta');
+    assert.equal(achar({ ...COMPLETO, GOOGLE_CLIENT_ID: '' }, 'Google Agenda')?.situacao, 'falta');
+
     const semNenhum = { ...COMPLETO, GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '', GOOGLE_REDIRECT_URI: '', GOOGLE_CALENDAR_ID: '' };
-    assert.equal(achar(semNenhum, 'Google Agenda')?.situacao, 'atencao');
+    const vazio = achar(semNenhum, 'Google Agenda');
+    assert.equal(vazio?.situacao, 'ok');
+    assert.match(vazio!.recado, /painel/, 'precisa dizer onde as credenciais entram agora');
   });
 
   test('arquivo totalmente vazio não quebra e acusa tudo', () => {

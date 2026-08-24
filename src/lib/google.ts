@@ -8,22 +8,67 @@ import { restanteDe } from './tipos';
 
 const ESCOPOS = ['https://www.googleapis.com/auth/calendar'];
 const CHAVE_TOKEN = 'google_tokens';
+const CHAVE_CREDENCIAIS = 'google_credenciais';
 
 type Tokens = { refresh_token?: string; access_token?: string; expiry_date?: number };
 
-export function oauth() {
+export type Credenciais = { client_id: string; client_secret: string };
+
+/**
+ * As credenciais do Google, guardadas no banco.
+ *
+ * Ficavam só no `.env`, o que obrigava a mexer em arquivo e republicar o
+ * sistema para ligar a agenda de um ateliê. Agora elas entram pelo painel; o
+ * `.env` continua valendo como reserva, para quem já tinha configurado assim.
+ *
+ * O `client_secret` nunca sai daqui para o navegador — quem pergunta pela tela
+ * recebe só se existe ou não.
+ */
+export async function lerCredenciais(): Promise<Credenciais | null> {
+  const guardadas = await lerConfig<Partial<Credenciais>>(CHAVE_CREDENCIAIS);
+  const id = String(guardadas?.client_id ?? process.env.GOOGLE_CLIENT_ID ?? '').trim();
+  const segredo = String(guardadas?.client_secret ?? process.env.GOOGLE_CLIENT_SECRET ?? '').trim();
+  return id && segredo ? { client_id: id, client_secret: segredo } : null;
+}
+
+export async function gravarCredenciais(credenciais: Credenciais) {
+  await gravarConfig(CHAVE_CREDENCIAIS, credenciais);
+}
+
+/** Apaga as credenciais e, junto, a conexão que dependia delas. */
+export async function esquecerCredenciais() {
+  await gravarConfig(CHAVE_CREDENCIAIS, {});
+  await gravarConfig(CHAVE_TOKEN, {});
+}
+
+export const temCredenciais = async () => Boolean(await lerCredenciais());
+
+/**
+ * O endereço de volta do Google.
+ *
+ * Precisa bater letra por letra com o que está cadastrado no Google Cloud, e é
+ * por isso que a tela da Agenda mostra este mesmo valor para copiar: montá-lo
+ * aqui, a partir do endereço do painel, evita a variável de ambiente a mais e
+ * o erro de digitar duas vezes a mesma coisa.
+ */
+export const enderecoDeVolta = (base: string) =>
+  String(process.env.GOOGLE_REDIRECT_URI ?? '').trim() || `${base}/api/google/callback`;
+
+async function oauth(voltarPara?: string) {
+  const credenciais = await lerCredenciais();
   return new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
+    credenciais?.client_id,
+    credenciais?.client_secret,
+    voltarPara
   );
 }
 
 /** Onde guardamos, por poucos minutos, o sorteio que prova que a volta é nossa. */
 export const COOKIE_ESTADO = 'google_estado';
 
-export function urlAutorizacao(estado: string) {
-  return oauth().generateAuthUrl({
+export async function urlAutorizacao(estado: string, voltarPara: string) {
+  const cliente = await oauth(voltarPara);
+  return cliente.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
     scope: ESCOPOS,
@@ -31,8 +76,8 @@ export function urlAutorizacao(estado: string) {
   });
 }
 
-export async function trocarCodigoPorTokens(code: string) {
-  const cliente = oauth();
+export async function trocarCodigoPorTokens(code: string, voltarPara: string) {
+  const cliente = await oauth(voltarPara);
   const { tokens } = await cliente.getToken(code);
   const anteriores = (await lerConfig<Tokens>(CHAVE_TOKEN)) ?? {};
   await gravarConfig(CHAVE_TOKEN, { ...anteriores, ...tokens });
@@ -50,7 +95,7 @@ export async function desconectarAgenda() {
 async function calendario() {
   const tokens = await lerConfig<Tokens>(CHAVE_TOKEN);
   if (!tokens?.refresh_token) return null;
-  const cliente = oauth();
+  const cliente = await oauth();
   cliente.setCredentials(tokens);
   cliente.on('tokens', async (novos) => {
     const atuais = (await lerConfig<Tokens>(CHAVE_TOKEN)) ?? {};
@@ -90,6 +135,7 @@ function corpoDoEvento(pedido: Pedido, itens: PedidoItem[]) {
   const descricao = [
     `Cliente: ${pedido.cliente_nome}`,
     `WhatsApp: ${pedido.cliente_telefone}`,
+    pedido.cliente_ramal ? `Ramal: ${pedido.cliente_ramal}` : null,
     pedido.cliente_email ? `E-mail: ${pedido.cliente_email}` : null,
     ``,
     `Peça: ${pedido.peca}`,
@@ -99,7 +145,12 @@ function corpoDoEvento(pedido: Pedido, itens: PedidoItem[]) {
     `Valor: ${moeda(pedido.valor_centavos)}`,
     pedido.sinal_centavos ? `Sinal já pago: ${moeda(pedido.sinal_centavos)}` : null,
     pedido.sinal_centavos ? `Falta receber: ${moeda(restanteDe(pedido))}` : null,
-    pedido.urgente ? `⚡ Pedido marcado como urgente` : null,
+    pedido.urgente ? '⚡ Pedido marcado como urgente' : null,
+    pedido.acrescimo_centavos
+      ? `Acréscimo pela pressa: ${moeda(pedido.acrescimo_centavos)}`
+      : pedido.urgente
+        ? 'Pressa sem acréscimo (ministro, ministra ou advogado)'
+        : null,
     pedido.descricao ? `\nO que a cliente pediu:\n${pedido.descricao}` : null,
     pedido.observacoes ? `\nSuas anotações:\n${pedido.observacoes}` : null,
     ``,

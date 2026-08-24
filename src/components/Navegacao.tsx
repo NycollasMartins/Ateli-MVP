@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { soAdminPode, type Papel } from '@/lib/acesso';
+import { usePapel } from '@/components/Papel';
 
 /** O dia a dia: é o que fica na barra de baixo no celular. */
 const PRINCIPAIS = [
@@ -17,8 +19,6 @@ export const AJUSTES = [
   { href: '/painel/precos', rotulo: 'Tabela de preços', icone: 'lista' },
   { href: '/painel/qrcode', rotulo: 'QR do ateliê', icone: 'qr' },
   { href: '/painel/equipe', rotulo: 'Equipe', icone: 'equipe' },
-  { href: '/painel/marca', rotulo: 'Marca', icone: 'marca' },
-  { href: '/painel/saude', rotulo: 'Estado da instalação', icone: 'ajustes' },
 ] as const;
 
 function Icone({ nome }: { nome: string }) {
@@ -94,6 +94,16 @@ function Icone({ nome }: { nome: string }) {
   }
 }
 
+/**
+ * Tira do menu o que a pessoa não pode abrir.
+ *
+ * A lista de quem pode o quê vem de `acesso.ts`, a mesma que o `proxy.ts`
+ * consulta. Fossem duas listas, um item novo entraria numa e não na outra — e
+ * o menu ofereceria uma tela que barra na cara de quem clicasse.
+ */
+export const paraOPapel = <T extends { href: string }>(itens: readonly T[], papel: Papel) =>
+  papel === 'admin' ? [...itens] : itens.filter((i) => !soAdminPode(i.href));
+
 export function Navegacao({
   nomeAtelie,
   logo,
@@ -104,6 +114,9 @@ export function Navegacao({
   nomeUsuario?: string;
 }) {
   const caminho = usePathname();
+  const papel = usePapel();
+  const principais = paraOPapel(PRINCIPAIS, papel);
+  const ajustes = paraOPapel(AJUSTES, papel);
   const ativo = (href: string) => (href === '/painel' ? caminho === href : caminho.startsWith(href));
 
   return (
@@ -120,7 +133,7 @@ export function Navegacao({
             <p className="rotulo mt-1 text-papel/60">{nomeUsuario || 'Painel do ateliê'}</p>
           </div>
           <nav className="p-3">
-            {PRINCIPAIS.map((i) => (
+            {principais.map((i) => (
               <Link
                 key={i.href}
                 href={i.href}
@@ -136,7 +149,7 @@ export function Navegacao({
             ))}
 
             <p className="rotulo mb-1 mt-4 px-3 text-papel/60">Ajustes</p>
-            {AJUSTES.map((i) => (
+            {ajustes.map((i) => (
               <Link
                 key={i.href}
                 href={i.href}
@@ -162,7 +175,7 @@ export function Navegacao({
 
       {/* barra inferior no celular */}
       <nav className="base-corte sem-impressao fixed bottom-0 left-0 right-0 z-40 flex justify-around border-t border-black/30 md:hidden">
-        {[...PRINCIPAIS, { href: '/painel/ajustes', rotulo: 'Ajustes', icone: 'ajustes' }].map((i) => (
+        {[...principais, { href: '/painel/ajustes', rotulo: 'Ajustes', icone: 'ajustes' }].map((i) => (
           <Link
             key={i.href}
             href={i.href}

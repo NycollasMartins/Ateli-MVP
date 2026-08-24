@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { trocarCodigoPorTokens, COOKIE_ESTADO } from '@/lib/google';
+import { trocarCodigoPorTokens, enderecoDeVolta, COOKIE_ESTADO } from '@/lib/google';
+import { enderecoDoPainel } from '@/lib/endereco';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +34,9 @@ export async function GET(req: NextRequest) {
   if (!code) return voltar('erro=sem-codigo');
 
   try {
-    await trocarCodigoPorTokens(code);
+    // o mesmo endereço de volta usado ao pedir a autorização: o Google
+    // confere os dois e recusa a troca se forem diferentes
+    await trocarCodigoPorTokens(code, enderecoDeVolta(enderecoDoPainel(req)));
   } catch {
     return voltar('erro=falha');
   }

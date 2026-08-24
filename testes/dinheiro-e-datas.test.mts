@@ -8,6 +8,7 @@ import {
   moeda,
   diasAte,
   prazoEmPalavras,
+  prazoDoServico,
 } from '../src/lib/formato.ts';
 import { restanteDe, contaComoReceita, ehStatus, STATUS_VALIDOS } from '../src/lib/tipos.ts';
 
@@ -169,5 +170,30 @@ describe('peça atrasada é dita como atrasada', () => {
   test('o atraso é dito com todas as letras', () => {
     assert.equal(prazoEmPalavras(-1), 'era ontem');
     assert.equal(prazoEmPalavras(-7), 'atrasada 7 dias');
+  });
+});
+
+describe('o prazo de um serviço da tabela', () => {
+  test('em horas, para o que sai enquanto a cliente espera', () => {
+    assert.equal(prazoDoServico(2, 'horas'), '2 horas');
+    assert.equal(prazoDoServico(1, 'horas'), '1 hora');
+  });
+
+  test('em dias, como sempre foi', () => {
+    assert.equal(prazoDoServico(7, 'dias'), '7 dias');
+    assert.equal(prazoDoServico(1, 'dias'), '1 dia');
+  });
+
+  /** Prazo zero ou negativo não existe: sairia "fica pronto em 0 dias". */
+  test('nunca escreve prazo de zero ou menos', () => {
+    for (const n of [0, -3, NaN]) {
+      assert.equal(prazoDoServico(n, 'dias'), '1 dia', String(n));
+      assert.equal(prazoDoServico(n, 'horas'), '1 hora', String(n));
+    }
+  });
+
+  test('número quebrado é arredondado, não escrito com vírgula', () => {
+    assert.equal(prazoDoServico(2.4, 'horas'), '2 horas');
+    assert.equal(prazoDoServico(2.6, 'horas'), '3 horas');
   });
 });
