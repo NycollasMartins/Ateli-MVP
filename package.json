@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ferramentas/servir-producao.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "conferir": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ferramentas/conferir-ambiente.mjs",

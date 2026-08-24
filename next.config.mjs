@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Empacota o servidor com só as dependências que ele usa de verdade, num
+  // `.next/standalone` que roda com `node server.js`. É o que deixa a imagem
+  // do contêiner pequena e dispensa levar o node_modules inteiro para dentro.
+  output: 'standalone',
   serverExternalPackages: ['googleapis'],
   // Este painel não usa next/image em lugar nenhum: as poucas imagens (logo do
   // ateliê, fotos das peças) vêm do Supabase Storage por <img> comum. Desligar

@@ -4,7 +4,7 @@ Sistema para ateliê de costura: a cliente lê um QR na parede e preenche o pedi
 dia da retirada; o evento vai para o Google Agenda com lembrete de 3 dias e de 24 horas; cada
 entrega registrada vira faturamento na semana e no mês.
 
-Feito em Next.js 15 (App Router) + TypeScript + Tailwind + Supabase. Pensado como MVP para
+Feito em Next.js 16 (App Router) + TypeScript + Tailwind + Supabase. Pensado como MVP para
 revender: trocar nome, cores e tabela de preços é tudo que muda de cliente para cliente.
 
 ---
@@ -132,24 +132,78 @@ npm run dev
 - Formulário da cliente: http://localhost:3000/f
 - Tabela de preços pública: http://localhost:3000/f/precos
 
-## 7. Publicar e ligar os lembretes
+Para ver como fica publicado, sem contêiner:
 
-Na Vercel: importe o repositório, cole as mesmas variáveis do `.env.local`, ajustando
-`NEXT_PUBLIC_APP_URL` e `GOOGLE_REDIRECT_URI` para o domínio real.
+```bash
+npm run build && npm start
+```
 
-O `vercel.json` já agenda `/api/cron/lembretes` todo dia às 8h de Brasília (11h UTC). A rota
-marca os lembretes de 72h e 24h e, se você preencher `RESEND_API_KEY` e `EMAIL_DESTINO`, manda
-o aviso por e-mail. Sem isso, o lembrete continua chegando pelo próprio Google Agenda.
+O `npm start` sobe o mesmo servidor empacotado que roda dentro da imagem — não o `next dev`.
+Assim, o que você testa aqui é o que vai para o ar.
+
+## 7. Publicar
+
+O projeto sai em contêiner (`Dockerfile`) ou direto na Vercel. Os dois precisam das mesmas
+variáveis do `.env.local`, com `NEXT_PUBLIC_APP_URL` e `GOOGLE_REDIRECT_URI` trocadas para o
+domínio real.
+
+### O que precisa estar no build, e não só na execução
+
+**Tudo que começa com `NEXT_PUBLIC_` é gravado dentro do JavaScript que vai para o navegador, na
+hora do build.** Definir essas variáveis só como variável de execução não muda nada: vale o valor
+que estava lá quando a imagem foi construída.
+
+A que morde é a `NEXT_PUBLIC_APP_URL`, porque é o endereço que o cartaz do QR leva impresso.
+Construir a imagem sem ela imprime um cartaz apontando para `localhost` — e isso só aparece
+quando a primeira cliente tenta ler o código na parede. Por isso o `Dockerfile` recebe as três
+como `ARG`:
+
+```bash
+docker build \
+  --build-arg NEXT_PUBLIC_SUPABASE_URL="https://xxxx.supabase.co" \
+  --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="chave-anon" \
+  --build-arg NEXT_PUBLIC_APP_URL="https://SEU-DOMINIO" \
+  -t atelie .
+```
+
+No Easypanel, esses três vão no campo de **build arguments** da aplicação. As demais
+(`SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, as do Google e as do e-mail) são de execução e vão
+no campo de variáveis de ambiente normal — a `service_role` **não** pode ir como build arg.
+
+A imagem escuta na porta `3000`, roda como usuário sem privilégio e traz um healthcheck que
+pergunta pelo `/login`.
+
+### Os lembretes precisam de alguém que chame
+
+O `vercel.json` agenda `/api/cron/lembretes` todo dia às 8h de Brasília (11h UTC). **Fora da
+Vercel esse arquivo não faz nada** — e a falha é silenciosa: o painel continua funcionando e os
+lembretes de 72h e 24h simplesmente nunca rodam.
+
+No Easypanel, crie uma tarefa agendada (`0 11 * * *`) chamando a rota. De fora do contêiner:
+
+```bash
+curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://SEU-DOMINIO/api/cron/lembretes
+```
+
+De dentro dele, sem depender de `curl` estar instalado:
+
+```bash
+node -e "fetch('http://127.0.0.1:3000/api/cron/lembretes',{headers:{authorization:'Bearer '+process.env.CRON_SECRET}}).then(r=>r.text()).then(console.log)"
+```
+
+A resposta diz o que foi feito: `lembretes` traz o que saiu e `falharam`, o que não saiu e vai
+ser tentado de novo na próxima chamada.
 
 **O `CRON_SECRET` é obrigatório.** Sem ele preenchido, a rota recusa todo mundo — inclusive a
 tarefa agendada. É de propósito: é o único endereço do sistema que roda sem login, e um estranho
 disparando-o faria os lembretes serem marcados como enviados sem que você recebesse nada. A
-Vercel manda esse segredo sozinha quando a variável está configurada lá.
+Vercel manda esse segredo sozinha quando a variável está configurada lá; no Easypanel, é você
+quem põe o cabeçalho, como nos comandos acima.
 
-Para testar na mão:
+Para testar na mão, em desenvolvimento:
 
 ```bash
-CRON_SECRET="..." npm run dev
+npm run dev
 curl -H "Authorization: Bearer SEU_CRON_SECRET" http://localhost:3000/api/cron/lembretes
 ```
 

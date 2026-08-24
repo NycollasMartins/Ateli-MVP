@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.env
+.env*.local
+*.tsbuildinfo
+.DS_Store
+testes
+ferramentas
+supabase
+README.md
+PROMPT-VSCODE.md
+AGENTS.md
+CLAUDE.md
+vercel.json
