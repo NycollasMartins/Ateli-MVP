@@ -1,0 +1,9 @@
+# O Netlify reconhece Next.js sozinho e instala o adaptador. Este arquivo só
+# fixa a versão do Node — a mesma do Dockerfile, para o site do Netlify e o
+# contêiner do Easypanel não rodarem em runtimes diferentes sem ninguém notar.
+[build]
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"

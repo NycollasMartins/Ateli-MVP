@@ -210,6 +210,25 @@ no campo de variáveis de ambiente normal — a `service_role` **não** pode ir 
 A imagem escuta na porta `3000`, roda como usuário sem privilégio e traz um healthcheck que
 pergunta pelo `/login`.
 
+### Netlify (para a cliente experimentar)
+
+O Netlify reconhece Next.js sozinho: conecte o repositório e ele monta. Diferente do contêiner,
+aqui as variáveis do build e as de execução são as mesmas — basta cadastrá-las uma vez em
+**Site configuration → Environment variables**, as `NEXT_PUBLIC_` incluídas.
+
+O `next.config.mjs` desliga o `output: 'standalone'` quando detecta que quem está montando é o
+Netlify, porque lá o adaptador monta o site do jeito dele. Não há nada para ligar.
+
+Um detalhe de ordem: a `NEXT_PUBLIC_APP_URL` precisa do endereço do site, que só existe depois do
+primeiro deploy. Publique uma vez, copie o endereço, preencha a variável e mande publicar de
+novo. Enquanto isso não for feito, o cartaz do QR aponta para o lugar errado.
+
+Depois do primeiro deploy, três endereços passam a precisar do domínio novo:
+
+- Supabase → **Authentication → URL Configuration → Redirect URLs**: `https://SEU-SITE/definir-senha`
+- Google Cloud → o endereço de retorno que a tela da Agenda mostra
+- a tarefa que chama os lembretes (abaixo)
+
 ### Os lembretes precisam de alguém que chame
 
 O `vercel.json` agenda `/api/cron/lembretes` todo dia às 8h de Brasília (11h UTC). **Fora da
